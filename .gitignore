@@ -55,3 +55,6 @@ scripts/python/__pycache__/
 
 # Shell history or environment files (if temporary)
 webots_env.sh~
+
+# Webots worlds
+/worlds/
