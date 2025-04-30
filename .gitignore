@@ -1,0 +1,57 @@
+# Webots build and temporary files
+*.os
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.class
+*.pyc
+__pycache__/
+
+# Webots runtime and project files
+*.bak
+*.log
+*.tmp
+*.swp
+*.class
+*.user
+*.wbo
+*.wrl
+*.wbt~
+*.wbproj~
+
+# Ignore Webots backup files
+*~
+
+# Ignore hidden/system files
+.DS_Store
+Thumbs.db
+
+# Ignore compiled controller binaries
+/controllers/**/controller
+/controllers/**/supervisor
+/controllers/**/static_node
+
+# Ignore generated data (keep empty folders via .gitkeep)
+*/data/*
+!*/data/.gitkeep
+
+# Ignore MATLAB/Simulink autosaves
+*.asv
+*.autosave
+
+# VSCode settings (keep settings if collaborating on configuration)
+.vscode/*
+!.vscode/c_cpp_properties.json
+
+# Python bytecode
+scripts/python/__pycache__/
+
+# Ignore generated plots or outputs (optional)
+*.png
+*.pdf
+*.svg
+
+# Shell history or environment files (if temporary)
+webots_env.sh~
