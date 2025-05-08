@@ -44,17 +44,17 @@ void odo_compute_acc(pose_t* odo, const double acc[3], const double acc_mean[3],
 {
 	// Compute the acceleration in frame A + remove biais (Assume 2-D motion)
 	double acc_wx = acc[0] - acc_mean[0];
-	// double acc_wy = acc[1] - acc_mean[1];
+	double acc_wy = acc[1] - acc_mean[1];
 
 	// Motion model (Assume 2-D motion)
 	_odo_speed_acc.x += acc_wx *_T;
 	_odo_pose_acc.x += _odo_speed_acc.x * _T;
 
-	// _odo_speed_acc.y += acc_wy *_T;
-	// _odo_pose_acc.y += _odo_speed_acc.y * _T;
+	_odo_speed_acc.y += acc_wy *_T;
+	_odo_pose_acc.y += _odo_speed_acc.y * _T;
 
 
-	log_csv(fname, fcols, time, acc[0], acc_wx, _odo_speed_acc.x, _odo_pose_acc.x, acc_mean[0]);
+	log_csv(fname, fcols, time, acc[0], acc_wy, acc_mean[0], _odo_speed_acc.x, _odo_pose_acc.x, acc[1], acc_wx, acc_mean[1], _odo_speed_acc.y, _odo_pose_acc.y);
 
 	memcpy(odo, &_odo_pose_acc, sizeof(pose_t));
 	
