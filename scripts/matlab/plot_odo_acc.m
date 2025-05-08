@@ -26,7 +26,7 @@ f = figure('Name','Webots : Odometry using accelerometer [m/s^2]');
 
 % Plot x : odometry vs ground truth (gps)
 plot(truth_data.time, truth_data.x); hold on;
-plot(odo_data.time, odo_data.accx);
+plot(odo_data.time, odo_data.x);
 title("x trajectory : odometry vs ground truth (gps)");
 legend("Ground Thruth : GPS", "Odometry : Accelerometer");
 xlabel('Time [s]'); ylabel('x [m]');
