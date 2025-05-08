@@ -20,11 +20,17 @@ typedef struct
   double heading;
 } pose_t;
 
+/*CONSTANTS*/
+#define WHEEL_AXIS 		0.057 		// Distance between the two wheels in meter
+#define WHEEL_RADIUS 	0.020		// Radius of the wheel in meter
+
 /*GLOBAL*/
 static double _T;
 
 static pose_t _odo_pose_acc, _odo_speed_acc, _odo_pose_enc;
 
+/*VERBOSE_FLAGS*/
+#define VERBOSE_ODO_ENC false     	// Print odometry values computed with wheel encoders
 #define VERBOSE_ODO_ACC false    	// Print odometry values computed with accelerometer
 
 /**
@@ -65,16 +71,59 @@ void odo_compute_acc(pose_t* odo, const double acc[3], const double acc_mean[3],
  */
 void odo_reset(int time_step)
 {
-	log_csv("odo_acc.csv", 6, 100., 100., 100., 100., 100., 100.);
-
-
  	memset(&_odo_pose_acc, 0 , sizeof(pose_t));
 
 	memset(&_odo_speed_acc, 0 , sizeof(pose_t));
 
-	// memset(&_odo_pose_enc, 0 , sizeof(pose_t));
+	memset(&_odo_pose_enc, 0 , sizeof(pose_t));
 
 	_T = time_step / 1000.0;
 }
 
 // TODO: You can implement your wheel odometry here if relevant for your project
+
+/**
+ * @brief      Compute the odometry using the encoders
+ *
+ * @param      odo         The odometry
+ * @param[in]  Aleft_enc   The delta left encoder
+ * @param[in]  Aright_enc  The delta right encoder
+ */
+void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc)
+{
+	//  Rad to meter : Convert the wheel encoders units into meters
+	
+	Aleft_enc  *= WHEEL_RADIUS;
+
+	Aright_enc *= WHEEL_RADIUS;
+
+	
+	// Comupute speeds : Compute the forward and the rotational speed
+	
+	double omega = ( Aright_enc - Aleft_enc ) / ( WHEEL_AXIS * _T );
+
+	double speed = ( Aright_enc + Aleft_enc ) / ( 2.0 * _T );
+
+	
+	//  Compute the speed into the world frame (A) 
+	
+	double speed_wx = speed * cos(_odo_pose_enc.heading);
+
+	double speed_wy = speed * sin(_odo_pose_enc.heading);
+
+	double omega_w  = omega;
+
+
+	// Integration : Euler method
+	
+	_odo_pose_enc.x += speed_wx * _T;
+
+	_odo_pose_enc.y += speed_wy * _T;
+
+	_odo_pose_enc.heading += omega_w * _T;
+
+	memcpy(odo, &_odo_pose_enc, sizeof(pose_t));
+
+	if(VERBOSE_ODO_ENC)
+    	printf("ODO with wheel encoders : %g %g %g\n", odo->x , odo->y , RAD2DEG(odo->heading) );
+}
