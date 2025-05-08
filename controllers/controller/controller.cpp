@@ -12,6 +12,26 @@
 #include "serial.hpp"
 #include "signal_analysis.hpp"
 
+/*VARIABLES*/
+static pose_t _odo_acc;
+
+/*CONSTANTS*/
+#define TIME_INIT_ACC 5 	      // Time in second
+
+/*VERBOSE_FLAGS*/
+#define VERBOSE_ACC_MEAN false       // Print accelerometer mean values
+#define VERBOSE_ACC false       // Print accelerometer values
+
+static double acc_mean[3] = {0, 0, 0};
+static bool acc_mean_computed = false;
+static int count = 0;
+
+static float last_time = 0;
+static float delta_time = 0;
+
+void controller_init(Pioneer* robot);
+void controller_compute_mean_acc(int time_step, double* imu, float time);
+
 int main(int argc, char **argv) {
 
   // Initialize the robot 
@@ -21,18 +41,60 @@ int main(int argc, char **argv) {
   // Initialize an example log file
   std::string f_example = "example.csv";
   int         f_example_cols = init_csv(f_example, "time, light, accx, accy, accz,"); // <-- don't forget the comma at the end of the string!!
+  
+  std::string f_odo_acc = "odo_acc.csv";
+  int         f_odo_acc_cols = init_csv(f_odo_acc, "time, accx, acc_wx, velx, x, acc_mean,"); // <-- don't forget the comma at the end of the string!!
+
+  printf("%d\n\n\n", f_odo_acc_cols);
+
+  // reset odometry
+  controller_init(&robot);
 
   while (robot.step() != -1) {
+    if(robot.get_time() < 0) {
+      continue;
+    }
+
+    float new_delta_time = robot.get_time() - last_time;
+
+    if(new_delta_time - last_time > 0.001) {
+      printf("Delta time changed %f", new_delta_time);
+    }
+
+    delta_time = new_delta_time;
+    last_time = robot.get_time();
 
     //////////////////////////////
     // Measurements acquisition //
     //////////////////////////////
-    
+
     double  time = robot.get_time();              // Current time in seconds 
     double* ps_values = robot.get_proximity();    // Measured proximity sensor values (16 values)
     double* wheel_rot = robot.get_encoders();     // Wheel rotations (left, right)
     double  light = robot.get_light_intensity();  // Light intensity
     double* imu = robot.get_imu();                // IMU with accelerations and rotation rates (acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z)
+
+    if(!acc_mean_computed) {
+      controller_compute_mean_acc(robot.get_timestep(), imu, robot.get_time());
+      continue;
+    } else {
+      
+      if(VERBOSE_ACC)
+        printf("acceleration : %g\n", imu[0]);
+
+    // if(robot.get_time() < TIME_INIT_ACC)
+
+      // 2. Localization
+      odo_compute_acc(&_odo_acc, imu, acc_mean, f_odo_acc, f_odo_acc_cols, robot.get_time());
+      // log_csv(f_odo_acc, f_odo_acc_cols, robot.get_time(), _odo_acc.x);
+    // To Do : Uncomment the following line for part 3
+    }
+
+
+    /* for(int i = 0; i < 16; i++) {
+      printf("%d: %f; ", i, ps_values[i]);
+    }
+    printf("\n"); */
 
     ////////////////////
     // Implementation //
@@ -60,4 +122,44 @@ int main(int argc, char **argv) {
   close_csv(); // close all opened csv files
 
   return 0;
+}
+
+
+void controller_init(Pioneer* robot) {
+  odo_reset(robot->get_timestep());
+}
+
+
+
+/**
+ * @brief      Compute the mean of the 3-axis accelerometer. The result is stored in array _meas.acc_mean
+ */
+void controller_compute_mean_acc(int time_step, double* imu, float time)
+{  
+  if(count == 0) {
+    printf("start averaging: time ");
+  }
+
+  count++;
+  
+  if(count > 20) // Remove the effects of strong acceleration at the begining
+  {
+    for(int i = 0; i < 3; i++)  
+        acc_mean[i] = (acc_mean[i] * (count - 1) + imu[i]) / (double) count;
+  }
+
+  if(VERBOSE_ACC_MEAN)
+        printf("ROBOT acc mean : %g %g %g\n", acc_mean[0], acc_mean[1] , acc_mean[2]);
+
+  // printf("count: %d, time: %d, target: %d\n", count, (int) count * time_step / 1000., TIME_INIT_ACC);
+  // printf("time: %d, count: %d\n", (int) (TIME_INIT_ACC / (double) time_step * 1000), count);
+  
+  // if((int) count * time_step / 1000. == TIME_INIT_ACC) {
+  if(count == (int) (TIME_INIT_ACC / (double) time_step * 1000)) {
+  printf("time: %f, count: %d\n", time, (int) (TIME_INIT_ACC / (double) time_step * 1000), count);
+    acc_mean_computed = true;
+    printf("Accelerometer initialization Done! \n");
+    if(VERBOSE_ACC_MEAN)
+      printf("ROBOT acc mean : %g %g %g\n", acc_mean[0], acc_mean[1] , acc_mean[2]);
+  }
 }
