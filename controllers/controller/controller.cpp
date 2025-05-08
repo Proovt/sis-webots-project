@@ -26,17 +26,18 @@ static double acc_mean[3] = {0, 0, 0};
 static bool acc_mean_computed = false;
 static int count = 0;
 
-static float last_time = 0;
-static float delta_time = 0;
+static double delta_time = 0.0;
+static float last_time = -100.;
 
 void controller_init(Pioneer* robot);
-void controller_compute_mean_acc(int time_step, double* imu, float time);
+void compute_delta_time(double current_time);
+void controller_compute_mean_acc(double* imu, float time);
 
 int main(int argc, char **argv) {
-
   // Initialize the robot 
   Pioneer robot = Pioneer(argc, argv);
   robot.init();
+
 
   // Initialize an example log file
   std::string f_example = "example.csv";
@@ -45,24 +46,21 @@ int main(int argc, char **argv) {
   std::string f_odo_acc = "odo_acc.csv";
   int         f_odo_acc_cols = init_csv(f_odo_acc, "time, accx, acc_wx, velx, x, acc_mean,"); // <-- don't forget the comma at the end of the string!!
 
-  printf("%d\n\n\n", f_odo_acc_cols);
-
   // reset odometry
   controller_init(&robot);
+  printf("hello world 1\n");
 
   while (robot.step() != -1) {
-    if(robot.get_time() < 0) {
-      continue;
+    printf("hello world 2\n");
+
+    compute_delta_time(robot.get_time());
+
+    if(delta_time != 0) {
+      printf("time %f, delta time: %f\n", robot.get_time(), delta_time);
+    } else {
+      printf("no delta time: time %f, delta time: %f\n", robot.get_time(), delta_time);
+
     }
-
-    float new_delta_time = robot.get_time() - last_time;
-
-    if(new_delta_time - last_time > 0.001) {
-      printf("Delta time changed %f", new_delta_time);
-    }
-
-    delta_time = new_delta_time;
-    last_time = robot.get_time();
 
     //////////////////////////////
     // Measurements acquisition //
@@ -75,7 +73,7 @@ int main(int argc, char **argv) {
     double* imu = robot.get_imu();                // IMU with accelerations and rotation rates (acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z)
 
     if(!acc_mean_computed) {
-      controller_compute_mean_acc(robot.get_timestep(), imu, robot.get_time());
+      controller_compute_mean_acc(imu, robot.get_time());
       continue;
     } else {
       
@@ -129,12 +127,23 @@ void controller_init(Pioneer* robot) {
   odo_reset(robot->get_timestep());
 }
 
-
+void compute_delta_time(double current_time) {
+  if(delta_time == 0.0) {
+    // printf("delta time 0 at time: %f\n", current_time);
+    if (last_time != -100.) {
+      delta_time = current_time - last_time;
+      // printf("computing delta time: %f\n", delta_time);
+    } else {
+      // printf("Setting last time at %f\n", current_time);
+      last_time = current_time;
+    }
+  }
+}
 
 /**
  * @brief      Compute the mean of the 3-axis accelerometer. The result is stored in array _meas.acc_mean
  */
-void controller_compute_mean_acc(int time_step, double* imu, float time)
+void controller_compute_mean_acc(double* imu, float time)
 {  
   if(count == 0) {
     printf("start averaging: time ");
@@ -151,12 +160,12 @@ void controller_compute_mean_acc(int time_step, double* imu, float time)
   if(VERBOSE_ACC_MEAN)
         printf("ROBOT acc mean : %g %g %g\n", acc_mean[0], acc_mean[1] , acc_mean[2]);
 
-  // printf("count: %d, time: %d, target: %d\n", count, (int) count * time_step / 1000., TIME_INIT_ACC);
-  // printf("time: %d, count: %d\n", (int) (TIME_INIT_ACC / (double) time_step * 1000), count);
+  // printf("count: %d, time: %d, target: %d\n", count, (int) count * delta_time / 1000., TIME_INIT_ACC);
+  // printf("time: %d, count: %d\n", (int) (TIME_INIT_ACC / (double) delta_time * 1000), count);
   
-  // if((int) count * time_step / 1000. == TIME_INIT_ACC) {
-  if(count == (int) (TIME_INIT_ACC / (double) time_step * 1000)) {
-  printf("time: %f, count: %d\n", time, (int) (TIME_INIT_ACC / (double) time_step * 1000), count);
+  // if((int) count * delta_time / 1000. == TIME_INIT_ACC) {
+  if(count == (int) (TIME_INIT_ACC / (double) delta_time * 1000)) {
+  printf("time: %f, max_count: %d, count: %d\n", time, (int) (TIME_INIT_ACC / (double) delta_time * 1000), count);
     acc_mean_computed = true;
     printf("Accelerometer initialization Done! \n");
     if(VERBOSE_ACC_MEAN)
