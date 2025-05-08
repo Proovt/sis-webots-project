@@ -16,7 +16,8 @@
 static pose_t _odo_acc;
 
 /*CONSTANTS*/
-#define TIME_INIT_ACC 5 	      // Time in second
+#define TIME_INIT_ACC 5 	      // Time in seconds
+#define DELTA_TIME 32        // Delta time in milliseconds
 
 /*VERBOSE_FLAGS*/
 #define VERBOSE_ACC_MEAN false       // Print accelerometer mean values
@@ -38,7 +39,6 @@ int main(int argc, char **argv) {
   Pioneer robot = Pioneer(argc, argv);
   robot.init();
 
-
   // Initialize an example log file
   std::string f_example = "example.csv";
   int         f_example_cols = init_csv(f_example, "time, light, accx, accy, accz,"); // <-- don't forget the comma at the end of the string!!
@@ -48,20 +48,8 @@ int main(int argc, char **argv) {
 
   // reset odometry
   controller_init(&robot);
-  printf("hello world 1\n");
 
   while (robot.step() != -1) {
-    printf("hello world 2\n");
-
-    compute_delta_time(robot.get_time());
-
-    if(delta_time != 0) {
-      printf("time %f, delta time: %f\n", robot.get_time(), delta_time);
-    } else {
-      printf("no delta time: time %f, delta time: %f\n", robot.get_time(), delta_time);
-
-    }
-
     //////////////////////////////
     // Measurements acquisition //
     //////////////////////////////
@@ -164,8 +152,8 @@ void controller_compute_mean_acc(double* imu, float time)
   // printf("time: %d, count: %d\n", (int) (TIME_INIT_ACC / (double) delta_time * 1000), count);
   
   // if((int) count * delta_time / 1000. == TIME_INIT_ACC) {
-  if(count == (int) (TIME_INIT_ACC / (double) delta_time * 1000)) {
-  printf("time: %f, max_count: %d, count: %d\n", time, (int) (TIME_INIT_ACC / (double) delta_time * 1000), count);
+  if(count == (int) (TIME_INIT_ACC / (double) DELTA_TIME * 1000)) {
+  printf("time: %f, max_count: %d, count: %d\n", time, (int) (TIME_INIT_ACC / (double) DELTA_TIME * 1000), count);
     acc_mean_computed = true;
     printf("Accelerometer initialization Done! \n");
     if(VERBOSE_ACC_MEAN)

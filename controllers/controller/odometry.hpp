@@ -77,7 +77,8 @@ void odo_reset(int time_step)
 
 	memset(&_odo_pose_enc, 0 , sizeof(pose_t));
 
-	_T = time_step / 1000.0;
+	// _T = time_step / 1000.0;
+	_T = 32.0 / 1000.0;
 }
 
 // TODO: You can implement your wheel odometry here if relevant for your project
