@@ -24,6 +24,7 @@
 static pose_t _odo_acc, _odo_enc;
 static double acc_mean[3] = {0, 0, 0};
 static bool acc_mean_computed = false;
+static double odo_enc_prev[2] = {0, 0};
 
 // static double delta_time = 0.0;
 // static float last_time = -100.;
@@ -65,7 +66,10 @@ int main(int argc, char **argv) {
     double  light = robot.get_light_intensity();  // Light intensity
     double* imu = robot.get_imu();                // IMU with accelerations and rotation rates (acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z)
 
-    odo_compute_encoders(&_odo_acc, wheel_rot[0], wheel_rot[1], f_odo_enc, f_odo_enc_cols, time);
+    odo_compute_encoders(&_odo_acc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], f_odo_enc, f_odo_enc_cols, time);
+
+    for(int i = 0; i < 2; i++)
+      odo_enc_prev[i] = wheel_rot[i];
 
     if(!acc_mean_computed) {
       controller_compute_mean_acc(imu, time, f_odo_acc, f_odo_acc_cols, robot.get_timestep());
