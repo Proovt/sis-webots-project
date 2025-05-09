@@ -16,7 +16,7 @@ truth_data.Properties.VariableNames = strtrim(truth_data.Properties.VariableName
 figure;
 
 subplot(2, 2, 1);
-plot(truth_data.time, truth_data.x);
+plot(truth_data.x, truth_data.y);
 title('Position');
 xlabel('x [m]');
 ylabel('y [m]');

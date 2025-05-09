@@ -12,9 +12,6 @@
 #include "serial.hpp"
 #include "signal_analysis.hpp"
 
-/*VARIABLES*/
-static pose_t _odo_acc;
-
 /*CONSTANTS*/
 #define TIME_INIT_ACC 5 	      // Time in seconds
 #define DELTA_TIME 32        // Delta time in milliseconds
@@ -23,15 +20,17 @@ static pose_t _odo_acc;
 #define VERBOSE_ACC_MEAN true       // Print accelerometer mean values
 #define VERBOSE_ACC false       // Print accelerometer values
 
+/*VARIABLES*/
+static pose_t _odo_acc, _odo_enc;
 static double acc_mean[3] = {0, 0, 0};
 static bool acc_mean_computed = false;
 
-static double delta_time = 0.0;
-static float last_time = -100.;
+// static double delta_time = 0.0;
+// static float last_time = -100.;
 
 void controller_init(Pioneer* robot);
 void compute_delta_time(double current_time);
-void controller_compute_mean_acc(double* imu, float time, std::string fname, int fcols);
+void controller_compute_mean_acc(double* imu, float time, std::string fname, int fcols, double delta_time);
 // void controller_compute_mean_acc(double* imu, float time);
 
 int main(int argc, char **argv) {
@@ -45,6 +44,12 @@ int main(int argc, char **argv) {
   
   std::string f_odo_acc = "odo_acc.csv";
   int         f_odo_acc_cols = init_csv(f_odo_acc, "time, accx, acc_wx, acc_mean_x, velx, x, accy, acc_wy, acc_mean_y, vely, y,"); // <-- don't forget the comma at the end of the string!!
+
+  std::string f_odo_enc = "odo_enc.csv";
+  int         f_odo_enc_cols = init_csv(f_odo_enc, "time, aleft_enc, aright_enc, speed_wx, speed_wy, omega_w, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
+
+    // log_csv(fname, fcols, time, Aleft_enc, Aright_enc, speed_wx, speed_wy, omega_w, _odo_pose_enc.x, _odo_pose_enc.y, _odo_pose_enc.heading);
+
 
   // reset odometry
   controller_init(&robot);
@@ -60,8 +65,10 @@ int main(int argc, char **argv) {
     double  light = robot.get_light_intensity();  // Light intensity
     double* imu = robot.get_imu();                // IMU with accelerations and rotation rates (acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z)
 
+    odo_compute_encoders(&_odo_acc, wheel_rot[0], wheel_rot[1], f_odo_enc, f_odo_enc_cols, time);
+
     if(!acc_mean_computed) {
-      controller_compute_mean_acc(imu, robot.get_time(), f_odo_acc, f_odo_acc_cols);
+      controller_compute_mean_acc(imu, time, f_odo_acc, f_odo_acc_cols, robot.get_timestep());
       continue;
     } else {
       
@@ -127,7 +134,7 @@ void controller_init(Pioneer* robot) {
 /**
  * @brief      Compute the mean of the 3-axis accelerometer. The result is stored in array _meas.acc_mean
  */
-void controller_compute_mean_acc(double* imu, float time, std::string fname, int fcols)
+void controller_compute_mean_acc(double* imu, float time, std::string fname, int fcols, double delta_time)
 { 
   static int count = 0;
 
@@ -141,7 +148,7 @@ void controller_compute_mean_acc(double* imu, float time, std::string fname, int
     log_csv(fname, fcols, time, imu[0], 0., 0., 0., 0., imu[1], 0., 0., 0., 0.);
   }
 
-  if(count == (int) (TIME_INIT_ACC / (double) DELTA_TIME * 1000)) {
+  if(count == (int) (TIME_INIT_ACC / (double) delta_time * 1000)) {
     for(int i = 0; i < 3; i++)  
         acc_mean[i] /= (count - 20);
 

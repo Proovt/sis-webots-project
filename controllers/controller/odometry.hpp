@@ -22,7 +22,8 @@ typedef struct
 
 /*CONSTANTS*/
 #define WHEEL_AXIS 		0.057 		// Distance between the two wheels in meter
-#define WHEEL_RADIUS 	0.020		// Radius of the wheel in meter
+#define WHEEL_RADIUS 	0.010		// Radius of the wheel in meter
+// #define MIN_VALUE_THRESHOLD 0.05
 
 /*GLOBAL*/
 static double _T;
@@ -46,13 +47,19 @@ void odo_compute_acc(pose_t* odo, const double acc[3], const double acc_mean[3],
 	double acc_wx = acc[0] - acc_mean[0];
 	double acc_wy = acc[1] - acc_mean[1];
 
+	/* if(abs(acc_wx) < MIN_VALUE_THRESHOLD) {
+		acc_wx = 0.0;
+	}
+	if(abs(acc_wy) < MIN_VALUE_THRESHOLD) {
+		acc_wy = 0.0;
+	} */
+
 	// Motion model (Assume 2-D motion)
 	_odo_speed_acc.x += acc_wx *_T;
 	_odo_pose_acc.x += _odo_speed_acc.x * _T;
 
 	_odo_speed_acc.y += acc_wy *_T;
 	_odo_pose_acc.y += _odo_speed_acc.y * _T;
-
 
 	log_csv(fname, fcols, time, acc[0], acc_wy, acc_mean[0], _odo_speed_acc.x, _odo_pose_acc.x, acc[1], acc_wx, acc_mean[1], _odo_speed_acc.y, _odo_pose_acc.y);
 
@@ -64,23 +71,6 @@ void odo_compute_acc(pose_t* odo, const double acc[3], const double acc_mean[3],
     }
 }
 
-/**
- * @brief      Reset the odometry to zeros
- *
- * @param[in]  time_step  The time step used in the simulation in miliseconds
- */
-void odo_reset(int time_step)
-{
- 	memset(&_odo_pose_acc, 0 , sizeof(pose_t));
-
-	memset(&_odo_speed_acc, 0 , sizeof(pose_t));
-
-	memset(&_odo_pose_enc, 0 , sizeof(pose_t));
-
-	// _T = time_step / 1000.0;
-	_T = 32.0 / 1000.0;
-}
-
 // TODO: You can implement your wheel odometry here if relevant for your project
 
 /**
@@ -90,41 +80,55 @@ void odo_reset(int time_step)
  * @param[in]  Aleft_enc   The delta left encoder
  * @param[in]  Aright_enc  The delta right encoder
  */
-void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc)
+void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc, std::string fname, int fcols, float time)
 {
-	//  Rad to meter : Convert the wheel encoders units into meters
-	
-	Aleft_enc  *= WHEEL_RADIUS;
+	/* if(abs(Aleft_enc) < MIN_VALUE_THRESHOLD) {
+		Aleft_enc = 0.0;
+	}
+	if(abs(Aright_enc) < MIN_VALUE_THRESHOLD) {
+		Aright_enc = 0.0;
+	} */
 
+	//  Rad to meter : Convert the wheel encoders units into meters
+	Aleft_enc  *= WHEEL_RADIUS;
 	Aright_enc *= WHEEL_RADIUS;
 
-	
 	// Comupute speeds : Compute the forward and the rotational speed
-	
 	double omega = ( Aright_enc - Aleft_enc ) / ( WHEEL_AXIS * _T );
-
 	double speed = ( Aright_enc + Aleft_enc ) / ( 2.0 * _T );
 
-	
 	//  Compute the speed into the world frame (A) 
-	
 	double speed_wx = speed * cos(_odo_pose_enc.heading);
-
 	double speed_wy = speed * sin(_odo_pose_enc.heading);
-
 	double omega_w  = omega;
 
-
 	// Integration : Euler method
-	
 	_odo_pose_enc.x += speed_wx * _T;
-
 	_odo_pose_enc.y += speed_wy * _T;
-
 	_odo_pose_enc.heading += omega_w * _T;
 
 	memcpy(odo, &_odo_pose_enc, sizeof(pose_t));
 
 	if(VERBOSE_ODO_ENC)
     	printf("ODO with wheel encoders : %g %g %g\n", odo->x , odo->y , RAD2DEG(odo->heading) );
+
+    log_csv(fname, fcols, time, Aleft_enc, Aright_enc, speed_wx, speed_wy, omega_w, _odo_pose_enc.x, _odo_pose_enc.y, _odo_pose_enc.heading);
+}
+
+
+/**
+ * @brief      Reset the odometry to zeros
+ *
+ * @param[in]  time_step  The time step used in the simulation in miliseconds
+ */
+void odo_reset(int time_step)
+{
+ 	memset(&_odo_pose_acc, 0, sizeof(pose_t));
+
+	memset(&_odo_speed_acc, 0, sizeof(pose_t));
+
+	memset(&_odo_pose_enc, 0, sizeof(pose_t));
+
+	_T = time_step / 1000.0;
+	// _T = 32.0 / 1000.0;
 }
