@@ -82,3 +82,6 @@ xlabel('Time [s]'); ylabel('Acceleration [m/s^2]');
 
 %y_lim = [min([data.odo_acc_x;  data.pose_x]),max([data.odo_acc_x;  data.pose_x])];
 %xlim([data.time(1), data.time(end)]);ylim(y_lim + [-0.05,0.05]*(y_lim(2)-y_lim(1)));
+
+%%
+plot(abs(fft(odo_data.acc_wx)/length(odo_data.acc_wx)))
