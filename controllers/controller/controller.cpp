@@ -30,9 +30,24 @@ static double odo_enc_prev[2] = {0, 0};
 // static float last_time = -100.;
 
 void controller_init(Pioneer* robot);
-void compute_delta_time(double current_time);
 void controller_compute_mean_acc(double* imu, float time, std::string fname, int fcols, double delta_time);
+// void compute_delta_time(double current_time);
 // void controller_compute_mean_acc(double* imu, float time);
+
+
+void debug_compare_delta_time(Pioneer* robot) {
+  int robot_timestep = robot->get_timestep(); // [ms]
+  double delta_time = - robot->get_time(); // [s]
+  // go one step forward to compute delta time
+  robot->step();
+  // delta time = time_1 - time_0
+  delta_time += robot->get_time();
+
+  int update_timestep = delta_time * 1000;
+
+  printf("Robot timestep / world timestep %d ms\n", robot_timestep);
+  printf("Sensor / Robot step (update) timestep: %d ms\n", update_timestep);
+}
 
 int main(int argc, char **argv) {
   // Initialize the robot 
@@ -44,7 +59,7 @@ int main(int argc, char **argv) {
   int         f_example_cols = init_csv(f_example, "time, light, accx, accy, accz,"); // <-- don't forget the comma at the end of the string!!
   
   std::string f_odo_acc = "odo_acc.csv";
-  int         f_odo_acc_cols = init_csv(f_odo_acc, "time, accx, acc_wx, acc_mean_x, velx, x, accy, acc_wy, acc_mean_y, vely, y,"); // <-- don't forget the comma at the end of the string!!
+  int         f_odo_acc_cols = init_csv(f_odo_acc, "time, accx, acc_wx, acc_mean_x, velx, x, accy, acc_wy, acc_mean_y, vely, y, heading,"); // <-- don't forget the comma at the end of the string!!
 
   std::string f_odo_enc = "odo_enc.csv";
   int         f_odo_enc_cols = init_csv(f_odo_enc, "time, aleft_enc, aright_enc, speed_wx, speed_wy, omega_w, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
@@ -56,6 +71,8 @@ int main(int argc, char **argv) {
   controller_init(&robot);
 
   while (robot.step() != -1) {
+    /* debug_compare_delta_time(&robot);
+    break; */
     //////////////////////////////
     // Measurements acquisition //
     //////////////////////////////
@@ -154,7 +171,7 @@ void controller_compute_mean_acc(double* imu, float time, std::string fname, int
 
   if(count == (int) (TIME_INIT_ACC / (double) delta_time * 1000)) {
     for(int i = 0; i < 3; i++)  
-        acc_mean[i] /= (count - 20);
+        acc_mean[i] /= (double) (count - 20);
 
     acc_mean_computed = true;
 

@@ -28,6 +28,9 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
+# Unignore controller
+!/controllers/controller/controller.cpp
+
 # Ignore compiled controller binaries
 /controllers/**/controller
 /controllers/**/supervisor
