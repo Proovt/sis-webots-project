@@ -21,16 +21,12 @@ typedef struct
 } pose_t;
 
 /*CONSTANTS*/
-// #define WHEEL_AXIS 		0.057 		// Distance between the two wheels in meter
-// #define WHEEL_RADIUS 	0.010		// Radius of the wheel in meter
-// #define MIN_VALUE_THRESHOLD 0.05
+/* - */
 
-/*GLOBAL*/
-static double _T;
-
+/* VARIABLES */
 static pose_t _odo_pose_acc, _odo_speed_acc, _odo_pose_enc;
 
-/*VERBOSE_FLAGS*/
+/* VERBOSE_FLAGS */
 #define VERBOSE_ODO_ENC false     	// Print odometry values computed with wheel encoders
 #define VERBOSE_ODO_ACC false    	// Print odometry values computed with accelerometer
 
@@ -41,10 +37,10 @@ static pose_t _odo_pose_acc, _odo_speed_acc, _odo_pose_enc;
  * @param[in]  acc       The acceleration
  * @param[in]  acc_mean  The acc mean
  */
-void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[3], std::string fname, int fcols, float time)
+void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[3], double delta_time, std::string fname, int fcols, double time)
 {
 	// Adjust heading with gyroscope
-	// _odo_pose_acc.heading += acc[5] * _T;
+	// _odo_pose_acc.heading += acc[5] * delta_time;
 
 	// remove bias
 	double acc_normalized_x = acc[0] - acc_mean[0];
@@ -62,11 +58,11 @@ void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[3],
 	double acc_wy = sin(_odo_pose_acc.heading) * acc_normalized_x + cos(_odo_pose_acc.heading) * acc_normalized_wy;
 
 	// Motion model (Assume 2-D motion)
-	_odo_speed_acc.x += acc_wx *_T;
-	_odo_pose_acc.x += _odo_speed_acc.x * _T;
+	_odo_speed_acc.x += acc_wx * delta_time;
+	_odo_pose_acc.x += _odo_speed_acc.x * delta_time;
 
-	_odo_speed_acc.y += acc_wy *_T;
-	_odo_pose_acc.y += _odo_speed_acc.y * _T;
+	_odo_speed_acc.y += acc_wy * delta_time;
+	_odo_pose_acc.y += _odo_speed_acc.y * delta_time;
 
 	log_csv(fname, fcols, time, acc[0], acc_wy, acc_mean[0], _odo_speed_acc.x, _odo_pose_acc.x, acc[1], acc_wx, acc_mean[1], _odo_speed_acc.y, _odo_pose_acc.y, _odo_pose_acc.heading);
 
@@ -87,7 +83,7 @@ void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[3],
  * @param[in]  Aleft_enc   The delta left encoder
  * @param[in]  Aright_enc  The delta right encoder
  */
-void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc, std::string fname, int fcols, float time)
+void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc, double delta_time, std::string fname, int fcols, double time)
 {
 	/* if(abs(Aleft_enc) < MIN_VALUE_THRESHOLD) {
 		Aleft_enc = 0.0;
@@ -101,8 +97,8 @@ void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc, std:
 	Aright_enc *= pioneer_info.wheel_radius;
 
 	// Comupute speeds : Compute the forward and the rotational speed
-	double omega = ( Aright_enc - Aleft_enc ) / ( pioneer_info.width * _T );
-	double speed = ( Aright_enc + Aleft_enc ) / ( 2.0 * _T );
+	double omega = ( Aright_enc - Aleft_enc ) / ( pioneer_info.width * delta_time );
+	double speed = ( Aright_enc + Aleft_enc ) / ( 2.0 * delta_time );
 
 	//  Compute the speed into the world frame (A) 
 	double speed_wx = speed * cos(_odo_pose_enc.heading);
@@ -110,9 +106,9 @@ void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc, std:
 	double omega_w  = omega;
 
 	// Integration : Euler method
-	_odo_pose_enc.x += speed_wx * _T;
-	_odo_pose_enc.y += speed_wy * _T;
-	_odo_pose_enc.heading += omega_w * _T;
+	_odo_pose_enc.x += speed_wx * delta_time;
+	_odo_pose_enc.y += speed_wy * delta_time;
+	_odo_pose_enc.heading += omega_w * delta_time;
 
 	memcpy(odo, &_odo_pose_enc, sizeof(pose_t));
 
@@ -122,20 +118,14 @@ void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc, std:
     log_csv(fname, fcols, time, Aleft_enc, Aright_enc, speed_wx, speed_wy, omega_w, _odo_pose_enc.x, _odo_pose_enc.y, _odo_pose_enc.heading);
 }
 
-
 /**
  * @brief      Reset the odometry to zeros
- *
- * @param[in]  time_step  The time step used in the simulation in miliseconds
  */
-void odo_reset(int time_step)
+void odo_reset()
 {
  	memset(&_odo_pose_acc, 0, sizeof(pose_t));
 
 	memset(&_odo_speed_acc, 0, sizeof(pose_t));
 
 	memset(&_odo_pose_enc, 0, sizeof(pose_t));
-
-	_T = time_step / 1000.0;
-	// _T = 32.0 / 1000.0;
 }

@@ -6,9 +6,9 @@ clc                         % clear command window
 clear all                   % clear workspace
 close all                   % close all open figures
 %% Load the CSV file
-filename = '../../controllers/controller/data/example.csv';
-truth_name = '../../controllers/supervisor/data/ground_truth.csv';
-enc_filename = '../../controllers/controller/data/odo_enc.csv';
+filename = '../../../controllers/controller/data/example.csv';
+truth_name = '../../../controllers/supervisor/data/ground_truth.csv';
+enc_filename = '../../../controllers/controller/data/odo_enc.csv';
 data = readtable(filename);
 truth_data = readtable(truth_name);
 enc_data = readtable(enc_filename);
@@ -28,7 +28,7 @@ f = figure('Name','Webots : Odometry using accelerometer [m/s^2]');
 plot(truth_data.time, truth_data.x); hold on;
 plot(enc_data.time, enc_data.x);
 title("x trajectory : odometry vs ground truth (gps)");
-legend("Ground Thruth : GPS", "Odometry : Accelerometer");
+legend("Ground Thruth : GPS", "Odometry : Wheel encoder");
 xlabel('Time [s]'); ylabel('x [m]');
 
 %y_lim = [min([data.odo_acc_x;  data.pose_x]),max([data.odo_acc_x;  data.pose_x])];

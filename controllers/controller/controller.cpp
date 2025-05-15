@@ -14,7 +14,7 @@
 
 /*CONSTANTS*/
 #define TIME_INIT_ACC 5 	      // Time in seconds
-#define DELTA_TIME 32        // Delta time in milliseconds
+// #define DELTA_TIME 32        // Delta time in milliseconds
 
 /*VERBOSE_FLAGS*/
 #define VERBOSE_ACC_MEAN true       // Print accelerometer mean values
@@ -26,34 +26,19 @@ static double acc_mean[3] = {0, 0, 0};
 static bool acc_mean_computed = false;
 static double odo_enc_prev[2] = {0, 0};
 
-// static double delta_time = 0.0;
-// static float last_time = -100.;
+/* variables for computing delta time */
+static float last_robot_time = -INFINITY;
 
 void controller_init(Pioneer* robot);
 void controller_compute_mean_acc(double* imu, float time, std::string fname, int fcols, double delta_time);
-// void compute_delta_time(double current_time);
+double compute_delta_time(double last_time, double current_time);
 // void controller_compute_mean_acc(double* imu, float time);
-
-
-void debug_compare_delta_time(Pioneer* robot) {
-  int robot_timestep = robot->get_timestep(); // [ms]
-  double delta_time = - robot->get_time(); // [s]
-  // go one step forward to compute delta time
-  robot->step();
-  // delta time = time_1 - time_0
-  delta_time += robot->get_time();
-
-  int update_timestep = delta_time * 1000;
-
-  printf("Robot timestep / world timestep %d ms\n", robot_timestep);
-  printf("Sensor / Robot step (update) timestep: %d ms\n", update_timestep);
-}
 
 int main(int argc, char **argv) {
   // Initialize the robot 
   Pioneer robot = Pioneer(argc, argv);
   robot.init();
-
+  
   // Initialize an example log file
   std::string f_example = "example.csv";
   int         f_example_cols = init_csv(f_example, "time, light, accx, accy, accz,"); // <-- don't forget the comma at the end of the string!!
@@ -71,8 +56,6 @@ int main(int argc, char **argv) {
   controller_init(&robot);
 
   while (robot.step() != -1) {
-    /* debug_compare_delta_time(&robot);
-    break; */
     //////////////////////////////
     // Measurements acquisition //
     //////////////////////////////
@@ -83,21 +66,28 @@ int main(int argc, char **argv) {
     double  light = robot.get_light_intensity();  // Light intensity
     double* imu = robot.get_imu();                // IMU with accelerations and rotation rates (acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z)
 
-    odo_compute_encoders(&_odo_acc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], f_odo_enc, f_odo_enc_cols, time);
+    double delta_time = compute_delta_time(last_robot_time, time);
+    last_robot_time = time;
+
+    if(delta_time == INFINITY) {
+      // first timestep, skip calculations
+      continue;
+    }
+
+    odo_compute_encoders(&_odo_acc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time, f_odo_enc, f_odo_enc_cols, time);
 
     for(int i = 0; i < 2; i++)
       odo_enc_prev[i] = wheel_rot[i];
 
     if(!acc_mean_computed) {
-      controller_compute_mean_acc(imu, time, f_odo_acc, f_odo_acc_cols, robot.get_timestep());
+      controller_compute_mean_acc(imu, time, f_odo_acc, f_odo_acc_cols, delta_time);
       continue;
     } else {
-      
       if(VERBOSE_ACC)
         printf("acceleration : %g %g %g\n", imu[0], imu[1], imu[2]);
 
       // 2. Localization
-      odo_compute_acc(&_odo_acc, imu, acc_mean, f_odo_acc, f_odo_acc_cols, time);
+      odo_compute_acc(&_odo_acc, imu, acc_mean, delta_time, f_odo_acc, f_odo_acc_cols, time);
     }
 
 
@@ -136,24 +126,18 @@ int main(int argc, char **argv) {
 
 
 void controller_init(Pioneer* robot) {
-  odo_reset(robot->get_timestep());
+  odo_reset();
 }
 
-/* void compute_delta_time(double current_time) {
-  if(delta_time == 0.0) {
-    // printf("delta time 0 at time: %f\n", current_time);
-    if (last_time != -100.) {
-      delta_time = current_time - last_time;
-      // printf("computing delta time: %f\n", delta_time);
-    } else {
-      // printf("Setting last time at %f\n", current_time);
-      last_time = current_time;
-    }
-  }
-} */
+/**
+ * @brief      Compute the delta time between two time steps
+ */
+double compute_delta_time(double last_time, double current_time) {
+  return current_time - last_time;
+}
 
 /**
- * @brief      Compute the mean of the 3-axis accelerometer. The result is stored in array _meas.acc_mean
+ * @brief      Compute the mean of the 3-axis accelerometer for about TIME_INIT_ACC seconds. The result is stored in array _meas.acc_mean
  */
 void controller_compute_mean_acc(double* imu, float time, std::string fname, int fcols, double delta_time)
 { 
@@ -163,13 +147,15 @@ void controller_compute_mean_acc(double* imu, float time, std::string fname, int
   
   if(count > 20) // Remove the effects of strong acceleration at the begining
   {
+    printf("computing acc\n");
     for(int i = 0; i < 3; i++)
         acc_mean[i] += imu[i];
 
-    log_csv(fname, fcols, time, imu[0], 0., 0., 0., 0., imu[1], 0., 0., 0., 0.);
+    // log_csv(fname, fcols, time, imu[0], 0., 0., 0., 0., imu[1], 0., 0., 0., 0.);
   }
 
-  if(count == (int) (TIME_INIT_ACC / (double) delta_time * 1000)) {
+
+  if(count == (int) ((double) (TIME_INIT_ACC) / delta_time)) {
     for(int i = 0; i < 3; i++)  
         acc_mean[i] /= (double) (count - 20);
 
