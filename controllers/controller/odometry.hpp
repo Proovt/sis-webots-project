@@ -40,9 +40,9 @@ static pose_t _odo_pose_acc, _odo_speed_acc, _odo_pose_enc;
 void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[6], double delta_time, std::string fname, int fcols, double time)
 {
 	// Remove bias
-	double gyro_z_normalized = acc[5] - acc_mean[5];
+	double gyro_normalized_z = acc[5] - acc_mean[5];
 	double acc_normalized_x = acc[0] - acc_mean[0];
-	double acc_normalized_wy = acc[1] - acc_mean[1];
+	double acc_normalized_y = acc[1] - acc_mean[1];
 
 	/* if(abs(acc_wx) < MIN_VALUE_THRESHOLD) {
 		acc_wx = 0.0;
@@ -52,11 +52,11 @@ void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[6],
 	} */
 
 	// Adjust heading with gyroscope
-	_odo_pose_acc.heading += gyro_z_normalized * delta_time;
+	_odo_pose_acc.heading += gyro_normalized_z * delta_time;
 
 	// Compute the acceleration in world frame 
-	double acc_wx = cos(_odo_pose_acc.heading) * acc_normalized_x - sin(_odo_pose_acc.heading) * acc_normalized_wy;
-	double acc_wy = sin(_odo_pose_acc.heading) * acc_normalized_x + cos(_odo_pose_acc.heading) * acc_normalized_wy;
+	double acc_wx = cos(_odo_pose_acc.heading) * acc_normalized_x - sin(_odo_pose_acc.heading) * acc_normalized_y;
+	double acc_wy = sin(_odo_pose_acc.heading) * acc_normalized_x + cos(_odo_pose_acc.heading) * acc_normalized_y;
 
 	// Motion model (Assume 2-D motion)
 	_odo_speed_acc.x += acc_wx * delta_time;
