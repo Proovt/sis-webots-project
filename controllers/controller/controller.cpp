@@ -19,10 +19,11 @@
 /*VERBOSE_FLAGS*/
 #define VERBOSE_ACC_MEAN true       // Print accelerometer mean values
 #define VERBOSE_ACC false       // Print accelerometer values
+#define VERBOSE_PS false       // Print proximity sensor values
 
 /*VARIABLES*/
 static pose_t _odo_acc, _odo_enc;
-static double acc_mean[3] = {0, 0, 0};
+static double acc_mean[6] = {0, 0, 0, 0, 0, 0};
 static bool acc_mean_computed = false;
 static double odo_enc_prev[2] = {0, 0};
 
@@ -38,7 +39,7 @@ int main(int argc, char **argv) {
   // Initialize the robot 
   Pioneer robot = Pioneer(argc, argv);
   robot.init();
-  
+
   // Initialize an example log file
   std::string f_example = "example.csv";
   int         f_example_cols = init_csv(f_example, "time, light, accx, accy, accz,"); // <-- don't forget the comma at the end of the string!!
@@ -65,8 +66,14 @@ int main(int argc, char **argv) {
     double* wheel_rot = robot.get_encoders();     // Wheel rotations (left, right)
     double  light = robot.get_light_intensity();  // Light intensity
     double* imu = robot.get_imu();                // IMU with accelerations and rotation rates (acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z)
+    ////////////////////
+    // Implementation //
+    ////////////////////
 
+    // delta time computation
     double delta_time = compute_delta_time(last_robot_time, time);
+    
+    // Update previous time step
     last_robot_time = time;
 
     if(delta_time == INFINITY) {
@@ -74,31 +81,33 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    odo_compute_encoders(&_odo_acc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time, f_odo_enc, f_odo_enc_cols, time);
+    // Accelerometer and Gyroscope bias computation
+    if(!acc_mean_computed) {
+      controller_compute_mean_acc(imu, time, f_odo_acc, f_odo_acc_cols, delta_time);
+      // skip odometry as long as mean is computed
+      continue;
+    }
 
+    // Sensor value logging
+    if(VERBOSE_ACC)
+      printf("acceleration: %g %g %g, gyroscope: %g %g %g\n", imu[0], imu[1], imu[2], imu[3], imu[4], imu[5]);
+
+    if(VERBOSE_PS) {
+      for(int i = 0; i < 16; i++) {
+        printf("%d: %f; ", i, ps_values[i]);
+      }
+      printf("\n");
+    }
+
+    // Localization
+    odo_compute_encoders(&_odo_acc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time, f_odo_enc, f_odo_enc_cols, time);
+    odo_compute_acc(&_odo_acc, imu, acc_mean, delta_time, f_odo_acc, f_odo_acc_cols, time);
+
+
+    // Update values
     for(int i = 0; i < 2; i++)
       odo_enc_prev[i] = wheel_rot[i];
 
-    if(!acc_mean_computed) {
-      controller_compute_mean_acc(imu, time, f_odo_acc, f_odo_acc_cols, delta_time);
-      continue;
-    } else {
-      if(VERBOSE_ACC)
-        printf("acceleration : %g %g %g\n", imu[0], imu[1], imu[2]);
-
-      // 2. Localization
-      odo_compute_acc(&_odo_acc, imu, acc_mean, delta_time, f_odo_acc, f_odo_acc_cols, time);
-    }
-
-
-    /* for(int i = 0; i < 16; i++) {
-      printf("%d: %f; ", i, ps_values[i]);
-    }
-    printf("\n"); */
-
-    ////////////////////
-    // Implementation //
-    ////////////////////
 
     // DATA ACQUISITION
     double data[PACKET_SIZE];
@@ -148,7 +157,7 @@ void controller_compute_mean_acc(double* imu, float time, std::string fname, int
   if(count > 20) // Remove the effects of strong acceleration at the begining
   {
     printf("computing acc\n");
-    for(int i = 0; i < 3; i++)
+    for(int i = 0; i < 5; i++)
         acc_mean[i] += imu[i];
 
     // log_csv(fname, fcols, time, imu[0], 0., 0., 0., 0., imu[1], 0., 0., 0., 0.);
@@ -156,7 +165,7 @@ void controller_compute_mean_acc(double* imu, float time, std::string fname, int
 
 
   if(count == (int) ((double) (TIME_INIT_ACC) / delta_time)) {
-    for(int i = 0; i < 3; i++)  
+    for(int i = 0; i < 5; i++)  
         acc_mean[i] /= (double) (count - 20);
 
     acc_mean_computed = true;
