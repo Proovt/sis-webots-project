@@ -21,8 +21,8 @@ typedef struct
 } pose_t;
 
 /*CONSTANTS*/
-#define WHEEL_AXIS 		0.057 		// Distance between the two wheels in meter
-#define WHEEL_RADIUS 	0.010		// Radius of the wheel in meter
+// #define WHEEL_AXIS 		0.057 		// Distance between the two wheels in meter
+// #define WHEEL_RADIUS 	0.010		// Radius of the wheel in meter
 // #define MIN_VALUE_THRESHOLD 0.05
 
 /*GLOBAL*/
@@ -41,11 +41,14 @@ static pose_t _odo_pose_acc, _odo_speed_acc, _odo_pose_enc;
  * @param[in]  acc       The acceleration
  * @param[in]  acc_mean  The acc mean
  */
-void odo_compute_acc(pose_t* odo, const double acc[3], const double acc_mean[3], std::string fname, int fcols, float time)
+void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[3], std::string fname, int fcols, float time)
 {
-	// Compute the acceleration in frame A + remove biais (Assume 2-D motion)
-	double acc_wx = acc[0] - acc_mean[0];
-	double acc_wy = acc[1] - acc_mean[1];
+	// Adjust heading with gyroscope
+	// _odo_pose_acc.heading += acc[5] * _T;
+
+	// remove bias
+	double acc_normalized_x = acc[0] - acc_mean[0];
+	double acc_normalized_wy = acc[1] - acc_mean[1];
 
 	/* if(abs(acc_wx) < MIN_VALUE_THRESHOLD) {
 		acc_wx = 0.0;
@@ -54,6 +57,10 @@ void odo_compute_acc(pose_t* odo, const double acc[3], const double acc_mean[3],
 		acc_wy = 0.0;
 	} */
 
+	// Compute the acceleration in world frame 
+	double acc_wx = cos(_odo_pose_acc.heading) * acc_normalized_x - sin(_odo_pose_acc.heading) * acc_normalized_wy;
+	double acc_wy = sin(_odo_pose_acc.heading) * acc_normalized_x + cos(_odo_pose_acc.heading) * acc_normalized_wy;
+
 	// Motion model (Assume 2-D motion)
 	_odo_speed_acc.x += acc_wx *_T;
 	_odo_pose_acc.x += _odo_speed_acc.x * _T;
@@ -61,7 +68,7 @@ void odo_compute_acc(pose_t* odo, const double acc[3], const double acc_mean[3],
 	_odo_speed_acc.y += acc_wy *_T;
 	_odo_pose_acc.y += _odo_speed_acc.y * _T;
 
-	log_csv(fname, fcols, time, acc[0], acc_wy, acc_mean[0], _odo_speed_acc.x, _odo_pose_acc.x, acc[1], acc_wx, acc_mean[1], _odo_speed_acc.y, _odo_pose_acc.y);
+	log_csv(fname, fcols, time, acc[0], acc_wy, acc_mean[0], _odo_speed_acc.x, _odo_pose_acc.x, acc[1], acc_wx, acc_mean[1], _odo_speed_acc.y, _odo_pose_acc.y, _odo_pose_acc.heading);
 
 	memcpy(odo, &_odo_pose_acc, sizeof(pose_t));
 	
@@ -90,11 +97,11 @@ void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc, std:
 	} */
 
 	//  Rad to meter : Convert the wheel encoders units into meters
-	Aleft_enc  *= WHEEL_RADIUS;
-	Aright_enc *= WHEEL_RADIUS;
+	Aleft_enc  *= pioneer_info.wheel_radius;
+	Aright_enc *= pioneer_info.wheel_radius;
 
 	// Comupute speeds : Compute the forward and the rotational speed
-	double omega = ( Aright_enc - Aleft_enc ) / ( WHEEL_AXIS * _T );
+	double omega = ( Aright_enc - Aleft_enc ) / ( pioneer_info.width * _T );
 	double speed = ( Aright_enc + Aleft_enc ) / ( 2.0 * _T );
 
 	//  Compute the speed into the world frame (A) 
