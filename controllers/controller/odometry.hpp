@@ -37,12 +37,10 @@ static pose_t _odo_pose_acc, _odo_speed_acc, _odo_pose_enc;
  * @param[in]  acc       The acceleration
  * @param[in]  acc_mean  The acc mean
  */
-void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[3], double delta_time, std::string fname, int fcols, double time)
+void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[6], double delta_time, std::string fname, int fcols, double time)
 {
-	// Adjust heading with gyroscope
-	// _odo_pose_acc.heading += acc[5] * delta_time;
-
-	// remove bias
+	// Remove bias
+	double gyro_z_normalized = acc[5] - acc_mean[5];
 	double acc_normalized_x = acc[0] - acc_mean[0];
 	double acc_normalized_wy = acc[1] - acc_mean[1];
 
@@ -52,6 +50,9 @@ void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[3],
 	if(abs(acc_wy) < MIN_VALUE_THRESHOLD) {
 		acc_wy = 0.0;
 	} */
+
+	// Adjust heading with gyroscope
+	_odo_pose_acc.heading += gyro_z_normalized * delta_time;
 
 	// Compute the acceleration in world frame 
 	double acc_wx = cos(_odo_pose_acc.heading) * acc_normalized_x - sin(_odo_pose_acc.heading) * acc_normalized_wy;

@@ -67,3 +67,16 @@ xlabel('time [s]'); ylabel('speed [m/s]');
 
 %y_lim = [min([data.odo_acc_x;  data.pose_x]),max([data.odo_acc_x;  data.pose_x])];
 %xlim([data.time(1), data.time(end)]);ylim(y_lim + [-0.05,0.05]*(y_lim(2)-y_lim(1)));
+
+%% Plot the odometry heading computed using the accelerometer on Webots
+
+% ROBOT acc mean : -0.00148328 -0.00236683 9.49705
+
+% Plot the odometry computed using the accelerometer
+f = figure('Name','Webots : Odometry using wheel encoders [m/s^2]');
+hold on;
+plot(truth_data.time, truth_data.heading);
+plot(enc_data.time, enc_data.heading);
+legend("Ground Thruth : Heading", "Odometry : Heading");
+xlabel('Time [s]'); ylabel('[rad]');
+hold off;
