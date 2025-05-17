@@ -32,13 +32,18 @@ Thumbs.db
 !/controllers/controller/controller.cpp
 
 # Ignore compiled controller binaries
-/controllers/**/controller
+!/controllers/controller/controller
 /controllers/**/supervisor
 /controllers/**/static_node
 
 # Ignore generated data (keep empty folders via .gitkeep)
 */data/*
 !*/data/.gitkeep
+
+
+# Ignore generated build
+*/build/*
+!*/build/.gitkeep
 
 # Ignore MATLAB/Simulink autosaves
 *.asv
