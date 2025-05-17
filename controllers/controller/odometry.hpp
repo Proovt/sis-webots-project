@@ -20,7 +20,7 @@ typedef struct
   double heading;
 } pose_t;
 
-/*CONSTANTS*/
+/* CONSTANTS */
 /* - */
 
 /* VARIABLES */
@@ -44,21 +44,14 @@ void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[6],
 	double acc_normalized_x = acc[0] - acc_mean[0];
 	double acc_normalized_y = acc[1] - acc_mean[1];
 
-	/* if(abs(acc_wx) < MIN_VALUE_THRESHOLD) {
-		acc_wx = 0.0;
-	}
-	if(abs(acc_wy) < MIN_VALUE_THRESHOLD) {
-		acc_wy = 0.0;
-	} */
-
 	// Adjust heading with gyroscope
 	_odo_pose_acc.heading += gyro_normalized_z * delta_time;
 
-	// Compute the acceleration in world frame 
+	// Compute the acceleration in world frame (Assume 2-D motion)
 	double acc_wx = cos(_odo_pose_acc.heading) * acc_normalized_x - sin(_odo_pose_acc.heading) * acc_normalized_y;
 	double acc_wy = sin(_odo_pose_acc.heading) * acc_normalized_x + cos(_odo_pose_acc.heading) * acc_normalized_y;
 
-	// Motion model (Assume 2-D motion)
+	// Motion model (Integration: Euler method)
 	_odo_speed_acc.x += acc_wx * delta_time;
 	_odo_pose_acc.x += _odo_speed_acc.x * delta_time;
 
@@ -75,8 +68,6 @@ void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[6],
     }
 }
 
-// TODO: You can implement your wheel odometry here if relevant for your project
-
 /**
  * @brief      Compute the odometry using the encoders
  *
@@ -86,18 +77,11 @@ void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[6],
  */
 void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc, double delta_time, std::string fname, int fcols, double time)
 {
-	/* if(abs(Aleft_enc) < MIN_VALUE_THRESHOLD) {
-		Aleft_enc = 0.0;
-	}
-	if(abs(Aright_enc) < MIN_VALUE_THRESHOLD) {
-		Aright_enc = 0.0;
-	} */
-
-	//  Rad to meter : Convert the wheel encoders units into meters
+	// Rad to meter: Convert the wheel encoders units into meters
 	Aleft_enc  *= pioneer_info.wheel_radius;
 	Aright_enc *= pioneer_info.wheel_radius;
 
-	// Comupute speeds : Compute the forward and the rotational speed
+	// Comupute speeds: Compute the forward and the rotational speed
 	double omega = ( Aright_enc - Aleft_enc ) / ( pioneer_info.width * delta_time );
 	double speed = ( Aright_enc + Aleft_enc ) / ( 2.0 * delta_time );
 
@@ -106,7 +90,7 @@ void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc, doub
 	double speed_wy = speed * sin(_odo_pose_enc.heading);
 	double omega_w  = omega;
 
-	// Integration : Euler method
+	// Integration: Euler method
 	_odo_pose_enc.x += speed_wx * delta_time;
 	_odo_pose_enc.y += speed_wy * delta_time;
 	_odo_pose_enc.heading += omega_w * delta_time;
