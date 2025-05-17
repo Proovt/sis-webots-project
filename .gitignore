@@ -32,7 +32,7 @@ Thumbs.db
 !/controllers/controller/controller.cpp
 
 # Ignore compiled controller binaries
-!/controllers/controller/controller
+/controllers/controller/controller
 /controllers/**/supervisor
 /controllers/**/static_node
 
