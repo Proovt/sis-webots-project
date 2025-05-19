@@ -75,7 +75,7 @@ void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[6],
  * @param[in]  Aleft_enc   The delta left encoder
  * @param[in]  Aright_enc  The delta right encoder
  */
-void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc, double delta_time, std::string fname, int fcols, double time)
+void odo_compute_encoders(pose_t* odo_speed, double Aleft_enc, double Aright_enc, double delta_time)
 {
 	// Rad to meter: Convert the wheel encoders units into meters
 	Aleft_enc  *= pioneer_info.wheel_radius;
@@ -85,22 +85,8 @@ void odo_compute_encoders(pose_t* odo, double Aleft_enc, double Aright_enc, doub
 	double omega = ( Aright_enc - Aleft_enc ) / ( pioneer_info.width * delta_time );
 	double speed = ( Aright_enc + Aleft_enc ) / ( 2.0 * delta_time );
 
-	//  Compute the speed into the world frame (A) 
-	double speed_wx = speed * cos(_odo_pose_enc.heading);
-	double speed_wy = speed * sin(_odo_pose_enc.heading);
-	double omega_w  = omega;
-
-	// Integration: Euler method
-	_odo_pose_enc.x += speed_wx * delta_time;
-	_odo_pose_enc.y += speed_wy * delta_time;
-	_odo_pose_enc.heading += omega_w * delta_time;
-
-	memcpy(odo, &_odo_pose_enc, sizeof(pose_t));
-
-	if(VERBOSE_ODO_ENC)
-    	printf("ODO with wheel encoders : %g %g %g\n", odo->x , odo->y , RAD2DEG(odo->heading) );
-
-    log_csv(fname, fcols, time, Aleft_enc, Aright_enc, speed_wx, speed_wy, omega_w, _odo_pose_enc.x, _odo_pose_enc.y, _odo_pose_enc.heading);
+	odo_speed->x = speed;
+	odo_speed->heading = omega;
 }
 
 /**

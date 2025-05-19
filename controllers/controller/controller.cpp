@@ -22,7 +22,7 @@
 #define VERBOSE_PS false       // Print proximity sensor values
 
 /*VARIABLES*/
-static pose_t _odo_acc, _odo_enc;
+static pose_t _odo_acc, _odo_enc, _odo_speed_enc;
 static double acc_mean[6] = {0, 0, 0, 0, 0, 0};
 static bool acc_mean_computed = false;
 static double odo_enc_prev[2] = {0, 0};
@@ -47,11 +47,17 @@ int main(int argc, char **argv) {
   std::string f_odo_acc = "odo_acc.csv";
   int         f_odo_acc_cols = init_csv(f_odo_acc, "time, accx, acc_wx, acc_mean_x, velx, x, accy, acc_wy, acc_mean_y, vely, y, heading,"); // <-- don't forget the comma at the end of the string!!
 
+  /* std::string f_odo_enc = "odo_enc.csv";
+  int         f_odo_enc_cols = init_csv(f_odo_enc, "time, aleft_enc, aright_enc, speed_wx, speed_wy, omega_w, x, y, heading,"); // <-- don't forget the comma at the end of the string!! */
+
   std::string f_odo_enc = "odo_enc.csv";
-  int         f_odo_enc_cols = init_csv(f_odo_enc, "time, aleft_enc, aright_enc, speed_wx, speed_wy, omega_w, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
+  int         f_odo_enc_cols = init_csv(f_odo_enc, "time, x, y,"); // <-- don't forget the comma at the end of the string!!
+  
 
-    // log_csv(fname, fcols, time, Aleft_enc, Aright_enc, speed_wx, speed_wy, omega_w, _odo_pose_enc.x, _odo_pose_enc.y, _odo_pose_enc.heading);
 
+  // init Kalman
+  Mat Sigma = Mat::Zero();
+  Vec mu = Vec::Zero();
 
   // reset odometry
   controller_init(&robot);
@@ -100,9 +106,12 @@ int main(int argc, char **argv) {
     }
 
     // Localization
-    odo_compute_encoders(&_odo_acc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time, f_odo_enc, f_odo_enc_cols, time);
+    odo_compute_encoders(&_odo_speed_enc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
     odo_compute_acc(&_odo_acc, imu, acc_mean, delta_time, f_odo_acc, f_odo_acc_cols, time);
 
+    // Kalman Filter
+    prediction_step_enc(&mu, &Sigma, &_odo_speed_enc, delta_time);
+    
 
     // Update values
     for(int i = 0; i < 2; i++)
@@ -124,6 +133,10 @@ int main(int argc, char **argv) {
 
     // Log the time and light and IMU data in a csv file 
     log_csv(f_example, f_example_cols, time, light, imu[0], imu[1], imu[2]);
+
+
+    // Log Kalman
+    log_csv(f_odo_enc, f_odo_enc_cols, time, mu(0), mu(1));
 
   }
 
