@@ -37,11 +37,13 @@ Thumbs.db
 /controllers/**/static_node
 
 # Ignore generated data (keep empty folders via .gitkeep)
+/controllers/controller/data
 */data/*
 !*/data/.gitkeep
 
 
 # Ignore generated build
+/controllers/controller/build
 */build/*
 !*/build/.gitkeep
 
