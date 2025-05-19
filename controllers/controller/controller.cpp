@@ -22,8 +22,8 @@
 #define VERBOSE_PS false       // Print proximity sensor values
 
 /*VARIABLES*/
-static pose_t _odo_acc, _odo_enc, _odo_speed_enc;
-static double acc_mean[6] = {0, 0, 0, 0, 0, 0};
+static pose_t _odo_acc, odo_speed_acc, _odo_speed_enc;
+static double imu_mean[6] = {0, 0, 0, 0, 0, 0};
 static bool acc_mean_computed = false;
 static double odo_enc_prev[2] = {0, 0};
 
@@ -52,7 +52,9 @@ int main(int argc, char **argv) {
 
   std::string f_odo_enc = "odo_enc.csv";
   int         f_odo_enc_cols = init_csv(f_odo_enc, "time, x, y,"); // <-- don't forget the comma at the end of the string!!
-
+  
+  std::string f_odo_acc_kalman = "odo_acc_kalman.csv";
+  int         f_odo_acc_kalman_cols = init_csv(f_odo_acc_kalman, "time, x, y,"); // <-- don't forget the comma at the end of the string!!
 
   std::string f_odo_enc_sigma = "odo_enc_sigma.csv";
   int         f_odo_enc_sigma_cols = init_csv(f_odo_enc_sigma, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
@@ -60,6 +62,8 @@ int main(int argc, char **argv) {
   // init Kalman
   Mat Sigma = Mat::Zero();
   Vec mu = Vec::Zero();
+  Mat Sigma_acc = Mat::Zero();
+  Vec mu_acc = Vec::Zero();
 
   // reset odometry
   controller_init(&robot);
@@ -109,10 +113,13 @@ int main(int argc, char **argv) {
 
     // Localization
     odo_compute_encoders(&_odo_speed_enc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
-    odo_compute_acc(&_odo_acc, imu, acc_mean, delta_time, f_odo_acc, f_odo_acc_cols, time);
+    odo_compute_acc(&_odo_acc, imu, imu_mean, delta_time, f_odo_acc, f_odo_acc_cols, time);
+
+    odo_compute_acc_kalman(&odo_speed_acc, imu, imu_mean, delta_time);
 
     // Kalman Filter
     prediction_step_enc(&mu, &Sigma, &_odo_speed_enc, delta_time);
+    prediction_step_acc(&mu_acc, &Sigma_acc, &odo_speed_acc, delta_time);
     
 
     // Update values
@@ -141,6 +148,9 @@ int main(int argc, char **argv) {
     log_csv(f_odo_enc, f_odo_enc_cols, time, mu(0), mu(1));
     log_csv(f_odo_enc_sigma, f_odo_enc_sigma_cols, time, Sigma(0,0), Sigma(1,1), Sigma(2,2));
 
+
+    log_csv(f_odo_acc_kalman, f_odo_acc_kalman_cols, time, mu_acc(0), mu_acc(1));
+
   }
 
   // Enter here exit cleanup code.
@@ -162,7 +172,7 @@ double compute_delta_time(double last_time, double current_time) {
 }
 
 /**
- * @brief      Compute the mean of the 3-axis accelerometer for about TIME_INIT_ACC seconds. The result is stored in array _meas.acc_mean
+ * @brief      Compute the mean of the 3-axis accelerometer for about TIME_INIT_ACC seconds. The result is stored in array imu_mean
  */
 void controller_compute_mean_acc(double* imu, float time, std::string fname, int fcols, double delta_time)
 { 
@@ -174,7 +184,7 @@ void controller_compute_mean_acc(double* imu, float time, std::string fname, int
   {
     printf("computing acc\n");
     for(int i = 0; i < 5; i++)
-        acc_mean[i] += imu[i];
+        imu_mean[i] += imu[i];
 
     // log_csv(fname, fcols, time, imu[0], 0., 0., 0., 0., imu[1], 0., 0., 0., 0.);
   }
@@ -182,13 +192,13 @@ void controller_compute_mean_acc(double* imu, float time, std::string fname, int
 
   if(count == (int) ((double) (TIME_INIT_ACC) / delta_time)) {
     for(int i = 0; i < 5; i++)  
-        acc_mean[i] /= (double) (count - 20);
+        imu_mean[i] /= (double) (count - 20);
 
     acc_mean_computed = true;
 
     if(VERBOSE_ACC_MEAN) {
       printf("Accelerometer initialization Done! \n");
-      printf("ROBOT acc mean : %g %g %g\n", acc_mean[0], acc_mean[1] , acc_mean[2]);
+      printf("ROBOT acc mean : %g %g %g\n", imu_mean[0], imu_mean[1] , imu_mean[2]);
     }
   }
 }

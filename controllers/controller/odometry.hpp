@@ -24,7 +24,7 @@ typedef struct
 /* - */
 
 /* VARIABLES */
-static pose_t _odo_pose_acc, _odo_speed_acc, _odo_pose_enc;
+static pose_t _odo_pose_acc, _odo_speed_acc;
 
 /* VERBOSE_FLAGS */
 #define VERBOSE_ODO_ENC false     	// Print odometry values computed with wheel encoders
@@ -44,9 +44,6 @@ void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[6],
 	double acc_normalized_x = acc[0] - acc_mean[0];
 	double acc_normalized_y = acc[1] - acc_mean[1];
 
-	// Adjust heading with gyroscope
-	_odo_pose_acc.heading += gyro_normalized_z * delta_time;
-
 	// Compute the acceleration in world frame (Assume 2-D motion)
 	double acc_wx = cos(_odo_pose_acc.heading) * acc_normalized_x - sin(_odo_pose_acc.heading) * acc_normalized_y;
 	double acc_wy = sin(_odo_pose_acc.heading) * acc_normalized_x + cos(_odo_pose_acc.heading) * acc_normalized_y;
@@ -61,11 +58,25 @@ void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[6],
 	log_csv(fname, fcols, time, acc[0], acc_wy, acc_mean[0], _odo_speed_acc.x, _odo_pose_acc.x, acc[1], acc_wx, acc_mean[1], _odo_speed_acc.y, _odo_pose_acc.y, _odo_pose_acc.heading);
 
 	memcpy(odo, &_odo_pose_acc, sizeof(pose_t));
+
+	// Adjust heading with gyroscope
+	_odo_pose_acc.heading += gyro_normalized_z * delta_time;
 	
 	if(VERBOSE_ODO_ACC)
     {
 		printf("ODO with acceleration : %g %g %g\n", odo->x , odo->y , RAD2DEG(odo->heading));
     }
+}
+
+void odo_compute_acc_kalman(pose_t* odo_speed, const double imu[6], const double imu_mean[6], double delta_time) {
+	// Remove bias
+	double acc_normalized_x = imu[0] - imu_mean[0];
+	double acc_normalized_y = imu[1] - imu_mean[1];
+	double gyro_normalized_z = imu[5] - imu_mean[5];
+
+	odo_speed->x += acc_normalized_x * delta_time;
+	odo_speed->y += acc_normalized_y * delta_time;
+	odo_speed->heading = gyro_normalized_z;
 }
 
 /**
@@ -97,6 +108,4 @@ void odo_reset()
  	memset(&_odo_pose_acc, 0, sizeof(pose_t));
 
 	memset(&_odo_speed_acc, 0, sizeof(pose_t));
-
-	memset(&_odo_pose_enc, 0, sizeof(pose_t));
 }

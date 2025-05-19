@@ -104,12 +104,12 @@ void calculate_T(Mat *T, double heading) {
           0,       0,         1;
 }
 
-/* void prediction_step_acc(Vec *mu, Mat *Sigma, pose_t *odo_speed_acc, double gyro_z, double delta_time) {
+void prediction_step_acc(Vec *mu, Mat *Sigma, pose_t *odo_speed_acc, double delta_time) {
     // initialize Sigma_u
     Mat Sigma_u;
     calculate_sigma_u(&Sigma_u, sigma_acc_v, sigma_acc_v, SIGMA_GYR);
 
-    Vec u(odo_speed_acc->x, odo_speed_acc->y, gyro_z);
+    Vec u(odo_speed_acc->x, odo_speed_acc->y, odo_speed_acc->heading);
     
     Mat T;
     // initialize T
@@ -125,7 +125,7 @@ void calculate_T(Mat *T, double heading) {
 
 
     sigma_acc_v += SIGMA_ACC * delta_time;
-} */
+}
 
 void prediction_step_enc(Vec *mu, Mat *Sigma, pose_t *odo_speed, double delta_time) {
     // initialize Sigma_u
