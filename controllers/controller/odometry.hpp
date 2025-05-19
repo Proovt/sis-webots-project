@@ -20,55 +20,7 @@ typedef struct
   double heading;
 } pose_t;
 
-/* CONSTANTS */
-/* - */
-
-/* VARIABLES */
-static pose_t _odo_pose_acc, _odo_speed_acc;
-
-/* VERBOSE_FLAGS */
-#define VERBOSE_ODO_ENC false     	// Print odometry values computed with wheel encoders
-#define VERBOSE_ODO_ACC false    	// Print odometry values computed with accelerometer
-
-/**
- * @brief      Compute the odometry using the acceleration
- *
- * @param      odo       The odometry
- * @param[in]  acc       The acceleration
- * @param[in]  acc_mean  The acc mean
- */
-void odo_compute_acc(pose_t* odo, const double acc[6], const double acc_mean[6], double delta_time, std::string fname, int fcols, double time)
-{
-	// Remove bias
-	double gyro_normalized_z = acc[5] - acc_mean[5];
-	double acc_normalized_x = acc[0] - acc_mean[0];
-	double acc_normalized_y = acc[1] - acc_mean[1];
-
-	// Compute the acceleration in world frame (Assume 2-D motion)
-	double acc_wx = cos(_odo_pose_acc.heading) * acc_normalized_x - sin(_odo_pose_acc.heading) * acc_normalized_y;
-	double acc_wy = sin(_odo_pose_acc.heading) * acc_normalized_x + cos(_odo_pose_acc.heading) * acc_normalized_y;
-
-	// Motion model (Integration: Euler method)
-	_odo_speed_acc.x += acc_wx * delta_time;
-	_odo_pose_acc.x += _odo_speed_acc.x * delta_time;
-
-	_odo_speed_acc.y += acc_wy * delta_time;
-	_odo_pose_acc.y += _odo_speed_acc.y * delta_time;
-
-	log_csv(fname, fcols, time, acc[0], acc_wy, acc_mean[0], _odo_speed_acc.x, _odo_pose_acc.x, acc[1], acc_wx, acc_mean[1], _odo_speed_acc.y, _odo_pose_acc.y, _odo_pose_acc.heading);
-
-	memcpy(odo, &_odo_pose_acc, sizeof(pose_t));
-
-	// Adjust heading with gyroscope
-	_odo_pose_acc.heading += gyro_normalized_z * delta_time;
-	
-	if(VERBOSE_ODO_ACC)
-    {
-		printf("ODO with acceleration : %g %g %g\n", odo->x , odo->y , RAD2DEG(odo->heading));
-    }
-}
-
-void odo_compute_acc_kalman(pose_t* odo_speed, const double imu[6], const double imu_mean[6], double delta_time) {
+void odo_compute_acc(pose_t* odo_speed, const double imu[6], const double imu_mean[6], double delta_time) {
 	// Remove bias
 	double acc_normalized_x = imu[0] - imu_mean[0];
 	double acc_normalized_y = imu[1] - imu_mean[1];
@@ -98,14 +50,4 @@ void odo_compute_encoders(pose_t* odo_speed, double Aleft_enc, double Aright_enc
 
 	odo_speed->x = speed;
 	odo_speed->heading = omega;
-}
-
-/**
- * @brief      Reset the odometry to zeros
- */
-void odo_reset()
-{
- 	memset(&_odo_pose_acc, 0, sizeof(pose_t));
-
-	memset(&_odo_speed_acc, 0, sizeof(pose_t));
 }

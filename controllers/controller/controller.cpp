@@ -22,7 +22,7 @@
 #define VERBOSE_PS false       // Print proximity sensor values
 
 /*VARIABLES*/
-static pose_t _odo_acc, odo_speed_acc, _odo_speed_enc;
+static pose_t _odo_speed_acc, _odo_speed_enc;
 static double imu_mean[6] = {0, 0, 0, 0, 0, 0};
 static bool acc_mean_computed = false;
 static double odo_enc_prev[2] = {0, 0};
@@ -33,7 +33,6 @@ static float last_robot_time = -INFINITY;
 void controller_init(Pioneer* robot);
 void controller_compute_mean_acc(double* imu, float time, std::string fname, int fcols, double delta_time);
 double compute_delta_time(double last_time, double current_time);
-// void controller_compute_mean_acc(double* imu, float time);
 
 int main(int argc, char **argv) {
   // Initialize the robot 
@@ -43,18 +42,12 @@ int main(int argc, char **argv) {
   // Initialize an example log file
   std::string f_example = "example.csv";
   int         f_example_cols = init_csv(f_example, "time, light, accx, accy, accz,"); // <-- don't forget the comma at the end of the string!!
-  
-  std::string f_odo_acc = "odo_acc.csv";
-  int         f_odo_acc_cols = init_csv(f_odo_acc, "time, accx, acc_wx, acc_mean_x, velx, x, accy, acc_wy, acc_mean_y, vely, y, heading,"); // <-- don't forget the comma at the end of the string!!
-
-  /* std::string f_odo_enc = "odo_enc.csv";
-  int         f_odo_enc_cols = init_csv(f_odo_enc, "time, aleft_enc, aright_enc, speed_wx, speed_wy, omega_w, x, y, heading,"); // <-- don't forget the comma at the end of the string!! */
 
   std::string f_odo_enc = "odo_enc.csv";
   int         f_odo_enc_cols = init_csv(f_odo_enc, "time, x, y,"); // <-- don't forget the comma at the end of the string!!
   
-  std::string f_odo_acc_kalman = "odo_acc_kalman.csv";
-  int         f_odo_acc_kalman_cols = init_csv(f_odo_acc_kalman, "time, x, y,"); // <-- don't forget the comma at the end of the string!!
+  std::string f_odo_acc = "odo_acc.csv";
+  int         f_odo_acc_cols = init_csv(f_odo_acc, "time, x, y,"); // <-- don't forget the comma at the end of the string!!
 
   std::string f_odo_enc_sigma = "odo_enc_sigma.csv";
   int         f_odo_enc_sigma_cols = init_csv(f_odo_enc_sigma, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
@@ -113,15 +106,12 @@ int main(int argc, char **argv) {
 
     // Localization
     odo_compute_encoders(&_odo_speed_enc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
-    odo_compute_acc(&_odo_acc, imu, imu_mean, delta_time, f_odo_acc, f_odo_acc_cols, time);
-
-    odo_compute_acc_kalman(&odo_speed_acc, imu, imu_mean, delta_time);
+    odo_compute_acc(&_odo_speed_acc, imu, imu_mean, delta_time);
 
     // Kalman Filter
     prediction_step_enc(&mu, &Sigma, &_odo_speed_enc, delta_time);
-    prediction_step_acc(&mu_acc, &Sigma_acc, &odo_speed_acc, delta_time);
+    prediction_step_acc(&mu_acc, &Sigma_acc, &_odo_speed_acc, delta_time);
     
-
     // Update values
     for(int i = 0; i < 2; i++)
       odo_enc_prev[i] = wheel_rot[i];
@@ -144,13 +134,12 @@ int main(int argc, char **argv) {
     log_csv(f_example, f_example_cols, time, light, imu[0], imu[1], imu[2]);
 
 
-    // Log Kalman
+    // Log pose
     log_csv(f_odo_enc, f_odo_enc_cols, time, mu(0), mu(1));
+    log_csv(f_odo_acc, f_odo_acc_cols, time, mu_acc(0), mu_acc(1));
+
+    // Log uncertainty
     log_csv(f_odo_enc_sigma, f_odo_enc_sigma_cols, time, Sigma(0,0), Sigma(1,1), Sigma(2,2));
-
-
-    log_csv(f_odo_acc_kalman, f_odo_acc_kalman_cols, time, mu_acc(0), mu_acc(1));
-
   }
 
   // Enter here exit cleanup code.
@@ -161,7 +150,7 @@ int main(int argc, char **argv) {
 
 
 void controller_init(Pioneer* robot) {
-  odo_reset();
+  // odo_reset();
 }
 
 /**

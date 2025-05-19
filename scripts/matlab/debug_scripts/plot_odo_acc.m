@@ -9,17 +9,13 @@ close all                   % close all open figures
 filename = '../../../controllers/controller/data/example.csv';
 truth_name = '../../../controllers/supervisor/data/ground_truth.csv';
 odo_filename = '../../../controllers/controller/data/odo_acc.csv';
-kalman_filename = '../../../controllers/controller/data/odo_acc.csv';
-
 data = readtable(filename);
 truth_data = readtable(truth_name);
 odo_data = readtable(odo_filename);
-kalman_data = readtable(kalman_filename);
-
 % Strip spaces from column names
 data.Properties.VariableNames = strtrim(data.Properties.VariableNames);
 odo_data.Properties.VariableNames = strtrim(odo_data.Properties.VariableNames);
-kalman_data.Properties.VariableNames = strtrim(kalman_data.Properties.VariableNames);
+
 
 %% Plot the odometry x computed using the accelerometer on Webots
 
@@ -28,16 +24,13 @@ f = figure('Name','Webots : Odometry using accelerometer [m/s^2]');
 % Plot x : odometry vs ground truth (gps)
 plot(truth_data.time, truth_data.x); hold on;
 plot(odo_data.time, odo_data.x);
-plot(kalman_data.time, kalman_data.x);
-
 title("x trajectory : odometry vs ground truth (gps)");
-legend("Ground Thruth : GPS", "Odometry : Accelerometer", "Kalman");
+legend("Ground Thruth : GPS", "Odometry : Accelerometer");
 %ylim([-0.5, 0.5])
 xlabel('Time [s]'); ylabel('x [m]');
 
 %y_lim = [min([data.odo_acc_x;  data.pose_x]),max([data.odo_acc_x;  data.pose_x])];
 %xlim([data.time(1), data.time(end)]);ylim(y_lim + [-0.05,0.05]*(y_lim(2)-y_lim(1)));
-
 
 %% Plot the odometry heading computed using the accelerometer on Webots
 
@@ -51,6 +44,7 @@ plot(odo_data.time, odo_data.heading);
 legend("Ground Thruth : Heading", "Odometry : Accelerometer");
 xlabel('Time [s]'); ylabel('[rad]');
 hold off;
+
 
 %% Plot position using accelerometer
 
