@@ -52,8 +52,10 @@ int main(int argc, char **argv) {
 
   std::string f_odo_enc = "odo_enc.csv";
   int         f_odo_enc_cols = init_csv(f_odo_enc, "time, x, y,"); // <-- don't forget the comma at the end of the string!!
-  
 
+
+  std::string f_odo_enc_sigma = "odo_enc_sigma.csv";
+  int         f_odo_enc_sigma_cols = init_csv(f_odo_enc_sigma, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
 
   // init Kalman
   Mat Sigma = Mat::Zero();
@@ -137,6 +139,7 @@ int main(int argc, char **argv) {
 
     // Log Kalman
     log_csv(f_odo_enc, f_odo_enc_cols, time, mu(0), mu(1));
+    log_csv(f_odo_enc_sigma, f_odo_enc_sigma_cols, time, Sigma(0,0), Sigma(1,1), Sigma(2,2));
 
   }
 
