@@ -20,15 +20,15 @@ typedef struct
   double heading;
 } pose_t;
 
-void odo_compute_acc(pose_t* odo_speed, const double imu[6], const double imu_mean[6], double delta_time) {
+void odo_compute_acc(pose_t &odo_speed, const double imu[6], const double imu_mean[6], double delta_time) {
 	// Remove bias
 	double acc_normalized_x = imu[0] - imu_mean[0];
 	double acc_normalized_y = imu[1] - imu_mean[1];
 	double gyro_normalized_z = imu[5] - imu_mean[5];
 
-	odo_speed->x += acc_normalized_x * delta_time;
-	odo_speed->y += acc_normalized_y * delta_time;
-	odo_speed->heading = gyro_normalized_z;
+	odo_speed.x += acc_normalized_x * delta_time;
+	odo_speed.y += acc_normalized_y * delta_time;
+	odo_speed.heading = gyro_normalized_z;
 }
 
 /**
@@ -38,7 +38,7 @@ void odo_compute_acc(pose_t* odo_speed, const double imu[6], const double imu_me
  * @param[in]  Aleft_enc   The delta left encoder
  * @param[in]  Aright_enc  The delta right encoder
  */
-void odo_compute_encoders(pose_t* odo_speed, double Aleft_enc, double Aright_enc, double delta_time)
+void odo_compute_encoders(pose_t &odo_speed, double Aleft_enc, double Aright_enc, double delta_time)
 {
 	// Rad to meter: Convert the wheel encoders units into meters
 	Aleft_enc  *= pioneer_info.wheel_radius;
@@ -48,6 +48,6 @@ void odo_compute_encoders(pose_t* odo_speed, double Aleft_enc, double Aright_enc
 	double omega = ( Aright_enc - Aleft_enc ) / ( pioneer_info.width * delta_time );
 	double speed = ( Aright_enc + Aleft_enc ) / ( 2.0 * delta_time );
 
-	odo_speed->x = speed;
-	odo_speed->heading = omega;
+	odo_speed.x = speed;
+	odo_speed.heading = omega;
 }

@@ -31,6 +31,7 @@ static double odo_enc_prev[2] = {0, 0};
 static float last_robot_time = -INFINITY;
 
 void controller_init(Pioneer* robot);
+void odo_reset();
 void controller_compute_mean_acc(double* imu, float time, std::string fname, int fcols, double delta_time);
 double compute_delta_time(double last_time, double current_time);
 
@@ -105,12 +106,12 @@ int main(int argc, char **argv) {
     }
 
     // Localization
-    odo_compute_encoders(&_odo_speed_enc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
-    odo_compute_acc(&_odo_speed_acc, imu, imu_mean, delta_time);
+    odo_compute_encoders(_odo_speed_enc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
+    odo_compute_acc(_odo_speed_acc, imu, imu_mean, delta_time);
 
     // Kalman Filter
-    prediction_step_enc(&mu, &Sigma, &_odo_speed_enc, delta_time);
-    prediction_step_acc(&mu_acc, &Sigma_acc, &_odo_speed_acc, delta_time);
+    prediction_step_enc(mu, Sigma, _odo_speed_enc, delta_time);
+    prediction_step_acc(mu_acc, Sigma_acc, _odo_speed_acc, delta_time);
     
     // Update values
     for(int i = 0; i < 2; i++)
@@ -150,7 +151,7 @@ int main(int argc, char **argv) {
 
 
 void controller_init(Pioneer* robot) {
-  // odo_reset();
+  odo_reset();
 }
 
 /**
@@ -190,4 +191,13 @@ void controller_compute_mean_acc(double* imu, float time, std::string fname, int
       printf("ROBOT acc mean : %g %g %g\n", imu_mean[0], imu_mean[1] , imu_mean[2]);
     }
   }
+}
+
+/**
+ * @brief      Reset the odometry to zeros
+ */
+void odo_reset()
+{
+ 	memset(&_odo_speed_enc, 0, sizeof(pose_t));
+	memset(&_odo_speed_acc, 0, sizeof(pose_t));
 }

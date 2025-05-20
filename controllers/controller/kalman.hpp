@@ -92,60 +92,51 @@ bool kal_check_nan(const MatX& m){
          0, 1, 0;
 } */
 
-void calculate_sigma_u(Mat *Sigma, double sigma_acc_vx, double sigma_acc_vy, double sigma_gyr) {
-    *Sigma << sigma_acc_vx * sigma_acc_vx, 0,         0,
+void calculate_sigma_u(Mat &Sigma, double sigma_acc_vx, double sigma_acc_vy, double sigma_gyr) {
+    Sigma << sigma_acc_vx * sigma_acc_vx, 0,         0,
                 0,       sigma_acc_vy * sigma_acc_vy,   0,
                 0,       0,         sigma_gyr * sigma_gyr;
 }
 
-void calculate_T(Mat *T, double heading) {
-    *T << cos(heading), -sin(heading),         0,
+void calculate_T(Mat &T, double heading) {
+    T << cos(heading), -sin(heading),         0,
           sin(heading),       cos(heading),   0,
           0,       0,         1;
 }
 
-void prediction_step_acc(Vec *mu, Mat *Sigma, pose_t *odo_speed_acc, double delta_time) {
-    // initialize Sigma_u
-    Mat Sigma_u;
-    calculate_sigma_u(&Sigma_u, sigma_acc_v, sigma_acc_v, SIGMA_GYR);
-
-    Vec u(odo_speed_acc->x, odo_speed_acc->y, odo_speed_acc->heading);
+void prediction_step(Vec &mu, Mat &Sigma, pose_t &odo_speed, Mat &Sigma_u, double delta_time) {
+    // local frame of reference: speed_x = speed, speed_y = 0, angular_speed = omega
+    Vec u(odo_speed.x, 0, odo_speed.heading);
     
     Mat T;
     // initialize T
-    calculate_T(&T, (*mu)(2));
+    calculate_T(T, mu(2));
 
     Mat B = T * delta_time;
 
     Mat R = B * Sigma_u * B.transpose();
 
-    (*mu) = (*mu) + B * u;
+    mu = mu + B * u;
 
-    (*Sigma) = (*Sigma) + R;
+    Sigma = Sigma + R;
+}
 
+void prediction_step_acc(Vec &mu, Mat &Sigma, pose_t &odo_speed_acc, double delta_time) {
+    // initialize Sigma_u
+    Mat Sigma_u;
+    calculate_sigma_u(Sigma_u, sigma_acc_v, sigma_acc_v, SIGMA_GYR);
+
+    prediction_step(mu, Sigma, odo_speed_acc, Sigma_u, delta_time);
 
     sigma_acc_v += SIGMA_ACC * delta_time;
 }
 
-void prediction_step_enc(Vec *mu, Mat *Sigma, pose_t *odo_speed, double delta_time) {
+void prediction_step_enc(Vec &mu, Mat &Sigma, pose_t &odo_speed_enc, double delta_time) {
     // initialize Sigma_u
     Mat Sigma_u;
-    calculate_sigma_u(&Sigma_u, SIGMA_V_ENC, 0, SIGMA_OMEGA_ENC);
+    calculate_sigma_u(Sigma_u, SIGMA_V_ENC, 0, SIGMA_OMEGA_ENC);
 
-    // local frame of reference: speed_x = speed, speed_y = 0, angular_speed = omega
-    Vec u(odo_speed->x, 0, odo_speed->heading);
-    
-    Mat T;
-    // initialize T
-    calculate_T(&T, (*mu)(2));
-
-    Mat B = T * delta_time;
-
-    Mat R = B * Sigma_u * B.transpose();
-
-    (*mu) = (*mu) + B * u;
-
-    (*Sigma) = (*Sigma) + R;
+    prediction_step(mu, Sigma, odo_speed_enc, Sigma_u, delta_time);
 }
 
 /* void extended_kalman_filter_enc() {
