@@ -114,6 +114,7 @@ void calculate_T(Mat &T, double heading)
         0, 0, 1;
 }
 
+/* Prediction step */
 void prediction_step(Vec &mu, Mat &Sigma, pose_t &odo_speed, Mat &Sigma_u, double delta_time)
 {
     // local frame of reference: speed_x = speed, speed_y = 0, angular_speed = omega
@@ -151,6 +152,8 @@ void prediction_step_enc(Vec &mu, Mat &Sigma, pose_t &odo_speed_enc, double delt
 
     prediction_step(mu, Sigma, odo_speed_enc, Sigma_u, delta_time);
 }
+
+/* Update step */
 
 /* void extended_kalman_filter_enc() {
 

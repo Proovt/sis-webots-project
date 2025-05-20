@@ -30,6 +30,15 @@ double serial_get_data(Pioneer& robot, double* data){
     // - serial_read_msg()
     // - serial_get_signal_strength()
     // - serial_next_msg()
+    if(robot.serial_get_queue_length() == 0) return 0.0;
 
-    return 0.0; 
+    const double *robot_data = robot.serial_read_msg();
+
+    memcpy(data, robot_data, sizeof(robot_data));
+
+    double signal_strength = robot.serial_get_signal_strength();
+
+    robot.serial_next_msg();
+
+    return signal_strength; 
 }
