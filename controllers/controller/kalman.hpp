@@ -12,10 +12,10 @@
 
 /* CONSTANTS */
 #define DIM 3                          // State dimension
-#define SIGMA_ACC 0.05                 // m/s^2
-#define SIGMA_GYR 0.025                // rad/s
-#define SIGMA_V_ENC 0.05               // empirical
-#define SIGMA_OMEGA_ENC 10 * SIGMA_GYR // empirical
+#define SIGMA_ACC 0.05                 // [m/s^2]
+#define SIGMA_GYR 0.025                // [rad/s]
+#define SIGMA_V_ENC 0.05               // [m/s] (empirical)
+#define SIGMA_OMEGA_ENC 10 * SIGMA_GYR // [rad/s] (empirical)
 
 typedef Eigen::Matrix<double, DIM, DIM> Mat; // DIMxDIM matrix
 typedef Eigen::Matrix<double, -1, -1> MatX;  // Arbitrary size matrix
@@ -154,6 +154,11 @@ void prediction_step_enc(Vec &mu, Mat &Sigma, pose_t &odo_speed_enc, double delt
 }
 
 /* Update step */
+void update_step_sensor(Mat &Sigma, Mat &Sigma_pred, Mat &C, Mat &Q, Vec &pos, Vec &prediction, Vec &measurement) {
+    Mat K = Sigma_pred * C.transpose() * (C * Sigma_pred * C.transpose() + Q).inverse();
+    pos = prediction + K * (measurement - C * prediction);
+    Sigma = (I - K * C) * Sigma_pred;
+}
 
 /* void extended_kalman_filter_enc() {
 
