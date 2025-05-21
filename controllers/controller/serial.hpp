@@ -26,21 +26,10 @@ void print_array(const double *array)
  */
 double serial_get_data(Pioneer &robot, double *data)
 {
-
-    // TODO: Implement this function
-    // Hint: use the following functions from the Pioneer class:
-    // - serial_get_queue_length()
-    // - serial_read_msg()
-    // - serial_get_signal_strength()
-    // - serial_next_msg()
     if (robot.serial_get_queue_length() == 0)
         return 0.0;
 
     const double *robot_data = robot.serial_read_msg();
-
-    // print_array(robot_data);
-
-    // std::copy(std::begin(robot_data), std::end(robot_data), std::begin(data));
 
     memcpy(data, robot_data, PACKET_SIZE * sizeof(double));
 
