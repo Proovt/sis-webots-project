@@ -17,9 +17,10 @@
 // #define DELTA_TIME 32        // Delta time in milliseconds
 
 /*VERBOSE_FLAGS*/
-#define VERBOSE_ACC_MEAN true // Print accelerometer mean values
-#define VERBOSE_ACC false     // Print accelerometer values
-#define VERBOSE_PS false      // Print proximity sensor values
+#define VERBOSE_ACC_MEAN true       // Prints accelerometer mean values
+#define VERBOSE_ACC false           // Prints accelerometer values
+#define VERBOSE_PS false            // Prints proximity sensor values
+#define VERBOSE_SIGNAL_STREGTH true // Prints signal stregth and packet data
 
 /*VARIABLES*/
 static pose_t _odo_speed_acc, _odo_speed_enc;
@@ -111,6 +112,16 @@ int main(int argc, char **argv)
       printf("\n");
     }
 
+    // DATA ACQUISITION
+    double data[PACKET_SIZE];
+    double signal_strength = serial_get_data(robot, data);
+
+    if (VERBOSE_SIGNAL_STREGTH && signal_strength > 0)
+    {
+      printf("Signal [%f]: ", signal_strength);
+      print_array(data);
+    }
+
     // Localization
     odo_compute_encoders(_odo_speed_enc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
     odo_compute_acc(_odo_speed_acc, imu, imu_mean, delta_time);
@@ -122,10 +133,6 @@ int main(int argc, char **argv)
     // Update values
     for (int i = 0; i < 2; i++)
       odo_enc_prev[i] = wheel_rot[i];
-
-    // DATA ACQUISITION
-    double data[PACKET_SIZE];
-    double signal_strength = serial_get_data(robot, data);
 
     // NAVIGATION
     double lws = 0.0, rws = 0.0;         // left and right wheel speeds
