@@ -13,14 +13,14 @@
 #include "signal_analysis.hpp"
 
 /*CONSTANTS*/
-#define TIME_INIT_ACC 5 // Time in seconds
-// #define DELTA_TIME 32        // Delta time in milliseconds
+#define TIME_INIT_ACC 5               // Time in seconds
+#define SIGNAL_STRENGTH_THRESHOLD 2.0 // Threshold for updating robot position
 
 /*VERBOSE_FLAGS*/
-#define VERBOSE_ACC_MEAN true       // Prints accelerometer mean values
-#define VERBOSE_ACC false           // Prints accelerometer values
-#define VERBOSE_PS false            // Prints proximity sensor values
-#define VERBOSE_SIGNAL_STREGTH true // Prints signal stregth and packet data
+#define VERBOSE_ACC_MEAN true         // Prints accelerometer mean values
+#define VERBOSE_ACC false             // Prints accelerometer values
+#define VERBOSE_PS false              // Prints proximity sensor values
+#define VERBOSE_SIGNAL_STRENGTH false // Prints signal stregth and packet data
 
 /*VARIABLES*/
 static pose_t _odo_speed_acc, _odo_speed_enc;
@@ -32,6 +32,7 @@ static double odo_enc_prev[2] = {0, 0};
 static float last_robot_time = -INFINITY;
 
 void controller_init(Pioneer &robot);
+void set_position(Vec &mu, double x, double y);
 void odo_reset();
 void controller_compute_mean_acc(double imu[6], float time, std::string fname, int fcols, double delta_time);
 double compute_delta_time(double last_time, double current_time);
@@ -54,6 +55,12 @@ int main(int argc, char **argv)
 
   std::string f_odo_enc_sigma = "odo_enc_sigma.csv";
   int f_odo_enc_sigma_cols = init_csv(f_odo_enc_sigma, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
+
+  std::string f_sensor = "sensor_data.csv";
+  int f_sensor_cols = init_csv(f_sensor, "time, id, signal_strength, x, y, Ti, To,"); // <-- don't forget the comma at the end of the string!!
+
+  std::string f_sensor_node = "sensor_node.csv";
+  int f_sensor_node_cols = init_csv(f_sensor_node, "id, distance, signal_stregth, C,"); // <-- don't forget the comma at the end of the string!!
 
   // init Kalman
   Mat Sigma = Mat::Zero();
@@ -116,12 +123,6 @@ int main(int argc, char **argv)
     double data[PACKET_SIZE];
     double signal_strength = serial_get_data(robot, data);
 
-    if (VERBOSE_SIGNAL_STREGTH && signal_strength > 0)
-    {
-      printf("Signal [%f]: ", signal_strength);
-      print_array(data);
-    }
-
     // Localization
     odo_compute_encoders(_odo_speed_enc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
     odo_compute_acc(_odo_speed_acc, imu, imu_mean, delta_time);
@@ -129,6 +130,35 @@ int main(int argc, char **argv)
     // Kalman Filter
     prediction_step_enc(mu, Sigma, _odo_speed_enc, delta_time);
     prediction_step_acc(mu_acc, Sigma_acc, _odo_speed_acc, delta_time);
+
+    if(signal_strength > SIGNAL_STRENGTH_THRESHOLD) {
+      set_position(mu, data[1], data[2]);
+      printf("Set robot position: [%f, %f]\n", mu(0), mu(1));
+    }
+
+    if (signal_strength > 0)
+    {
+
+      double C = 1.06496;
+      double distance = sqrt(C / signal_strength);
+
+      double pose[4];
+      robot.get_ground_truth_pose(pose);
+
+      double z = 0.277;
+      double z_sensor = 1.0;
+      double delta_z_sqr = pow(z - z_sensor, 2);
+
+      // printf("x_r: %f, x_s: %f, y_r: %f, y_s. %f\n", data[1], pose[0], data[2], pose[1]);
+
+      double real_distance_sqr = (pow(data[1] - pose[0], 2) + pow(data[2] - pose[1], 2) + delta_z_sqr);
+      double real_distance = sqrt(real_distance_sqr);
+
+      double newC = signal_strength * real_distance_sqr;
+
+      // printf("signal: %f, calc dst: %f, real dst: %f, diff: %f, C: %f\n", signal_strength, distance, real_distance, abs(distance - real_distance), newC);
+      log_csv(f_sensor_node, f_sensor_node_cols, data[0], real_distance, signal_strength, newC);
+    }
 
     // Update values
     for (int i = 0; i < 2; i++)
@@ -152,6 +182,18 @@ int main(int argc, char **argv)
 
     // Log uncertainty
     log_csv(f_odo_enc_sigma, f_odo_enc_sigma_cols, time, Sigma(0, 0), Sigma(1, 1), Sigma(2, 2));
+
+    if (signal_strength > 0)
+    {
+      // Log sensor
+      log_csv(f_sensor, f_sensor_cols, time, data[0], signal_strength, data[1], data[2], data[3], data[4]);
+
+      if (VERBOSE_SIGNAL_STRENGTH)
+      {
+        printf("Signal [%f]: ", signal_strength);
+        print_array(data);
+      }
+    }
   }
 
   // Enter here exit cleanup code.
@@ -213,4 +255,9 @@ void odo_reset()
 {
   memset(&_odo_speed_enc, 0, sizeof(pose_t));
   memset(&_odo_speed_acc, 0, sizeof(pose_t));
+}
+
+void set_position(Vec &mu, double x, double y) {
+  mu(0) = x;
+  mu(1) = y;
 }
