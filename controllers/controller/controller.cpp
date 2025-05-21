@@ -32,7 +32,7 @@ static float last_robot_time = -INFINITY;
 
 void controller_init(Pioneer &robot);
 void odo_reset();
-void controller_compute_mean_acc(double *imu, float time, std::string fname, int fcols, double delta_time);
+void controller_compute_mean_acc(double imu[6], float time, std::string fname, int fcols, double delta_time);
 double compute_delta_time(double last_time, double current_time);
 
 int main(int argc, char **argv)
