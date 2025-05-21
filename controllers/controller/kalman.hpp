@@ -21,6 +21,7 @@ typedef Eigen::Matrix<double, DIM, DIM> Mat; // DIMxDIM matrix
 typedef Eigen::Matrix<double, -1, -1> MatX;  // Arbitrary size matrix
 typedef Eigen::Matrix<double, DIM, 1> Vec;   // DIMx1 column vector
 typedef Eigen::Matrix<double, -1, 1> VecX;   // Arbitrary size column vector
+typedef Eigen::Matrix<double, 2, 1> Vec2D;   // 2D column vector
 
 static const Mat I = MatX::Identity(DIM, DIM); // DIMxDIM identity matrix
 
@@ -33,7 +34,7 @@ static Vec mu = Vec::Zero();
 // State covariance sigma to be updated by the Kalman filter functions
 static Mat sigma = Mat::Zero();
 
-static MatX H(2, 3);
+static MatX H(2, DIM);
 
 static double sigma_acc_v = 0;
 
@@ -154,10 +155,37 @@ void prediction_step_enc(Vec &mu, Mat &Sigma, pose_t &odo_speed_enc, double delt
 }
 
 /* Update step */
-void update_step_sensor(Mat &Sigma, Mat &Sigma_pred, Mat &C, Mat &Q, Vec &pos, Vec &prediction, Vec &measurement) {
-    Mat K = Sigma_pred * C.transpose() * (C * Sigma_pred * C.transpose() + Q).inverse();
-    pos = prediction + K * (measurement - C * prediction);
-    Sigma = (I - K * C) * Sigma_pred;
+void update_step(Mat &Sigma, MatX &C, MatX &Q, Vec &mu, Vec2D &measurement)
+{
+    MatX K = Sigma * C.transpose() * (C * Sigma * C.transpose() + Q).inverse();
+    mu = mu + K * (measurement - C * mu);
+    Sigma = (I - K * C) * Sigma;
+}
+
+void update_step_sensor(Mat &Sigma, Vec &mu, Vec2D &measurement, double sensor_var)
+{
+    MatX C(2, DIM);
+    C << 1, 0, 0,
+        0, 1, 0;
+
+    MatX Q(2, 2);
+    Q << sensor_var, 0,
+        0, sensor_var;
+
+    update_step(Sigma, C, Q, mu, measurement);
+}
+
+void update_step_wall(Mat &Sigma, Vec &mu, Vec2D &measurement, double sensor_var)
+{
+    MatX C(2, DIM);
+    C << 1, 0, 0,
+        0, 1, 0;
+
+    MatX Q(2, 2);
+    Q << sensor_var, 0,
+        0, sensor_var;
+
+    update_step(Sigma, C, Q, mu, measurement);
 }
 
 /* void extended_kalman_filter_enc() {

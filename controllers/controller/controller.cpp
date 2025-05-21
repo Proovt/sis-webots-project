@@ -65,6 +65,9 @@ int main(int argc, char **argv)
   // init Kalman
   Mat Sigma = Mat::Zero();
   Vec mu = Vec::Zero();
+
+  Mat Sigma_enc = Mat::Zero();
+  Vec mu_enc = Vec::Zero();
   Mat Sigma_acc = Mat::Zero();
   Vec mu_acc = Vec::Zero();
 
@@ -128,36 +131,17 @@ int main(int argc, char **argv)
     odo_compute_acc(_odo_speed_acc, imu, imu_mean, delta_time);
 
     // Kalman Filter
-    prediction_step_enc(mu, Sigma, _odo_speed_enc, delta_time);
+    prediction_step_enc(mu_enc, Sigma_enc, _odo_speed_enc, delta_time);
     prediction_step_acc(mu_acc, Sigma_acc, _odo_speed_acc, delta_time);
 
     if(signal_strength > SIGNAL_STRENGTH_THRESHOLD) {
-      set_position(mu, data[1], data[2]);
-      printf("Set robot position: [%f, %f]\n", mu(0), mu(1));
-    }
-
-    if (signal_strength > 0)
-    {
-
-      double C = 1.06496;
-      double distance = sqrt(C / signal_strength);
-
-      double pose[4];
-      robot.get_ground_truth_pose(pose);
-
-      double z = 0.277;
-      double z_sensor = 1.0;
-      double delta_z_sqr = pow(z - z_sensor, 2);
-
-      // printf("x_r: %f, x_s: %f, y_r: %f, y_s. %f\n", data[1], pose[0], data[2], pose[1]);
-
-      double real_distance_sqr = (pow(data[1] - pose[0], 2) + pow(data[2] - pose[1], 2) + delta_z_sqr);
-      double real_distance = sqrt(real_distance_sqr);
-
-      double newC = signal_strength * real_distance_sqr;
-
-      // printf("signal: %f, calc dst: %f, real dst: %f, diff: %f, C: %f\n", signal_strength, distance, real_distance, abs(distance - real_distance), newC);
-      log_csv(f_sensor_node, f_sensor_node_cols, data[0], real_distance, signal_strength, newC);
+      double var = 1234;
+      Vec2D measurements(data[1], data[2]);
+      printf("position before: %f, %f; ", mu_enc(0), mu_enc(1));
+      update_step_sensor(Sigma_enc, mu_enc, measurements, var);
+      printf("position after: %f, %f\n", mu_enc(0), mu_enc(1));
+      // set_position(mu_enc, data[1], data[2]);
+      // printf("Set robot position: [%f, %f]\n", mu_enc(0), mu_enc(1));
     }
 
     // Update values
@@ -177,11 +161,11 @@ int main(int argc, char **argv)
     log_csv(f_example, f_example_cols, time, light, imu[0], imu[1], imu[2]);
 
     // Log pose
-    log_csv(f_odo_enc, f_odo_enc_cols, time, mu(0), mu(1));
+    log_csv(f_odo_enc, f_odo_enc_cols, time, mu_enc(0), mu_enc(1));
     log_csv(f_odo_acc, f_odo_acc_cols, time, mu_acc(0), mu_acc(1));
 
     // Log uncertainty
-    log_csv(f_odo_enc_sigma, f_odo_enc_sigma_cols, time, Sigma(0, 0), Sigma(1, 1), Sigma(2, 2));
+    log_csv(f_odo_enc_sigma, f_odo_enc_sigma_cols, time, Sigma_enc(0, 0), Sigma_enc(1, 1), Sigma_enc(2, 2));
 
     if (signal_strength > 0)
     {
