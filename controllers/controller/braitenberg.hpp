@@ -195,6 +195,7 @@ void braitenberg(double *ps, double &vel_left, double &vel_right, double pose[4]
         {
             printf("adf %d\n", backup_counter);
         }
+
         if (backup_counter > backup_duration)
         {
             state = prev_state;
@@ -265,14 +266,22 @@ void braitenberg(double *ps, double &vel_left, double &vel_right, double pose[4]
         if (turn_left)
         {
             if (VERBOSE_TURN)
+            {
+
                 printf("\nturnleft");
+            }
+
             double target = 990; // target value for ~0.5m distance
             double sensor_left = std::max(ps[0], ps[15]);
             double error = sensor_left - target;
             double Kp = 0.005;
             double correction = Kp * error;
+
             if (VERBOSE_TURN)
+            {
+
                 printf("\ncorrection = %f\n", correction);
+            }
 
             if (sensor_left < 850)
             {
@@ -294,14 +303,22 @@ void braitenberg(double *ps, double &vel_left, double &vel_right, double pose[4]
         if (turn_right)
         {
             if (VERBOSE_TURN)
+            {
+
                 printf("\nturnright");
+            }
+
             double target = 990; // target value for ~0.5m distance
             double sensor_right = std::max(ps[7], ps[8]);
             double error = sensor_right - target;
             double Kp = 0.005;
             double correction = Kp * error;
+
             if (VERBOSE_TURN)
+            {
+
                 printf("\ncorrection = %f\n", correction);
+            }
 
             if (sensor_right < 850)
             {
