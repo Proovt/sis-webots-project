@@ -14,7 +14,7 @@
 
 /*CONSTANTS*/
 #define TIME_INIT_ACC 5               // Time in seconds
-#define SIGNAL_STRENGTH_THRESHOLD 2.0 // Threshold for updating robot position
+#define SIGNAL_STRENGTH_THRESHOLD 1.8 // Threshold for updating robot position
 
 /*VERBOSE_FLAGS*/
 #define VERBOSE_ACC_MEAN true         // Prints accelerometer mean values
@@ -145,12 +145,19 @@ int main(int argc, char **argv)
 
     // Fuse sensor values
 
-    // S = C / d²
+    // S = C / d^2
     update_step_sensors(mu, mu_acc, Sigma, Sigma_acc);
 
     if (signal_strength > SIGNAL_STRENGTH_THRESHOLD)
     {
-      double var = 0.01; // 0.8 - 1.06 / signal_strength;
+      double C = 1.07;
+      double h = 1 - 0.277;
+      double d_sqr = C / signal_strength;
+      double radius = sqrt(d_sqr - h * h);
+      printf("radius: %f, radius^2: %f ", radius, radius * radius);
+
+      double var = radius * radius; // 0.8 - 1.06 / signal_strength;
+      // double var = 1e-7;
       Vec2D measurements(data[1], data[2]);
       printf("position before: %f, %f; ", mu(0), mu(1));
       update_step_sensor_node(mu, measurements, Sigma, var);
@@ -159,13 +166,13 @@ int main(int argc, char **argv)
       // printf("Set robot position: [%f, %f]\n", mu_enc(0), mu_enc(1));
     }
 
-    bool in_corridor = true;
+    /* bool in_corridor = true;
 
     if (!in_corridor)
     {
       // test walls
       // double front_left = se
-    }
+    } */
 
     // for logging difference
     prediction_step_enc(mu_enc, Sigma_enc, _odo_speed_enc, delta_time);
