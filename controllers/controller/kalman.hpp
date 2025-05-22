@@ -15,7 +15,7 @@
 #define SIGMA_ACC 0.05                 // [m/s^2]
 #define SIGMA_GYR 0.025                // [rad/s]
 #define SIGMA_V_ENC 0.05               // [m/s] (empirical)
-#define SIGMA_OMEGA_ENC 100 * SIGMA_GYR // [rad/s] (empirical)
+#define SIGMA_OMEGA_ENC 10 * SIGMA_GYR // [rad/s] (empirical)
 
 typedef Eigen::Matrix<double, DIM, DIM> Mat; // DIMxDIM matrix
 typedef Eigen::Matrix<double, -1, -1> MatX;  // Arbitrary size matrix
@@ -162,23 +162,29 @@ void update_step(Vec &mu, Vec2D &measurement, Mat &Sigma, MatX &Q, MatX &C)
     Sigma = (I - K * C) * Sigma;
 }
 
-void update_step_sensors(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_acc) { 
-    // Assume C = I3
-    // std::cout << "Matrix Sigma enc is:\n" << Sigma_enc << std::endl;
-    // std::cout << "Matrix Sigma acc is:\n" << Sigma_acc << std::endl;
-    // std::cout << std::endl;
-    Mat K = Sigma_enc * (Sigma_enc + Sigma_acc).inverse();
+void update_step_sensors(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_acc)
+{
+    // Only consider gyroscope
+    Mat C;
+    C << 0, 0, 0,
+        0, 0, 0,
+        0, 0, 1;
+    Mat K = Sigma_enc * C.transpose() * (C * Sigma_enc * C.transpose() + Sigma_acc).inverse();
+    // Mat K = Sigma_enc * (Sigma_enc + Sigma_acc).inverse();
 
     // std::cout << "K: " << std::endl;
-    if(kal_check_nan(K)) return;
+    if (kal_check_nan(K))
+        return;
 
     // Print the matrix
     // std::cout << "Matrix K is:\n" << K << std::endl;
 
-    mu_enc = mu_enc + K * (mu_acc - mu_enc);
-    Sigma_enc = (I - K) * Sigma_enc;
-}
+    mu = mu + K * (mu_acc - C * mu);
+    Sigma_enc = (I - K * C) * Sigma_enc;
 
+    // mu_enc = mu_enc + K * (mu_acc - mu_enc);
+    // Sigma_enc = (I - K) * Sigma_enc;
+}
 
 void update_step_sensor_node(Vec &mu, Vec2D &measurement, Mat &Sigma, double sensor_var)
 {
