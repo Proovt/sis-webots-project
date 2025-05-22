@@ -8,13 +8,13 @@ close all                   % close all open figures
 %% Load the CSV file
 filename = '../../../controllers/controller/data/example.csv';
 truth_name = '../../../controllers/supervisor/data/ground_truth.csv';
-odo_filename = '../../../controllers/controller/data/odo_acc.csv';
+acc_filename = '../../../controllers/controller/data/odo_acc.csv';
 data = readtable(filename);
 truth_data = readtable(truth_name);
-odo_data = readtable(odo_filename);
+acc_data = readtable(acc_filename);
 % Strip spaces from column names
 data.Properties.VariableNames = strtrim(data.Properties.VariableNames);
-odo_data.Properties.VariableNames = strtrim(odo_data.Properties.VariableNames);
+acc_data.Properties.VariableNames = strtrim(acc_data.Properties.VariableNames);
 
 
 %% Plot the odometry x computed using the accelerometer on Webots
@@ -23,7 +23,7 @@ odo_data.Properties.VariableNames = strtrim(odo_data.Properties.VariableNames);
 f = figure('Name','Webots : Odometry using accelerometer [m/s^2]');
 % Plot x : odometry vs ground truth (gps)
 plot(truth_data.time, truth_data.x); hold on;
-plot(odo_data.time, odo_data.x);
+plot(acc_data.time, acc_data.x);
 title("x trajectory : odometry vs ground truth (gps)");
 legend("Ground Thruth : GPS", "Odometry : Accelerometer");
 %ylim([-0.5, 0.5])
@@ -38,7 +38,7 @@ f = figure('Name','Webots : Odometry using accelerometer[m/s^2]');
 
 % Plot x : odometry vs ground truth (gps)
 plot(truth_data.x, truth_data.y); hold on;
-plot(odo_data.x, odo_data.y);
+plot(acc_data.x, acc_data.y);
 title("x trajectory : odometry vs ground truth (gps)");
 legend("Ground Thruth : GPS", "Odometry : Accelerometer");
 xlabel('x [m]'); ylabel('y [m]');
@@ -51,7 +51,7 @@ xlabel('x [m]'); ylabel('y [m]');
 f = figure('Name','Webots : Odometry using accelerometer [m/s^2]');
 hold on;
 plot(truth_data.time, truth_data.heading);
-plot(odo_data.time, odo_data.heading);
+plot(acc_data.time, acc_data.heading);
 legend("Ground Thruth : Heading", "Odometry : Accelerometer");
 xlabel('Time [s]'); ylabel('[rad]');
 hold off;
@@ -66,7 +66,7 @@ f = figure('Name','Webots : Odometry using accelerometer [m/s^2]');
 
 % Plot x : odometry vs ground truth (gps)
 plot(truth_data.x, truth_data.y); hold on;
-plot(odo_data.x, odo_data.y);
+plot(acc_data.x, acc_data.y);
 title("x trajectory : odometry vs ground truth (gps)");
 legend("Ground Thruth : GPS", "Odometry : Accelerometer");
 xlabel('Time [s]'); ylabel('x [m]');
@@ -85,8 +85,8 @@ R = 0.11;
 
 % Plot x : odometry vs ground truth (gps)
 plot(truth_data.time, truth_data.heading); hold on;
-plot(odo_data.time, odo_data.acc_wx);
-plot(odo_data.time, odo_data.acc_wy, DisplayName="Acceleration y");
+plot(acc_data.time, acc_data.acc_wx);
+plot(acc_data.time, acc_data.acc_wy, DisplayName="Acceleration y");
 title("x trajectory : odometry vs ground truth (gps)");
 legend("Ground Thruth : GPS", "Odometry : Accelerometer");
 xlabel('Time [s]'); ylabel('Acceleration [m/s^2]');
@@ -95,4 +95,4 @@ xlabel('Time [s]'); ylabel('Acceleration [m/s^2]');
 %xlim([data.time(1), data.time(end)]);ylim(y_lim + [-0.05,0.05]*(y_lim(2)-y_lim(1)));
 
 %%
-plot(abs(fft(odo_data.acc_wx)/length(odo_data.acc_wx)))
+plot(abs(fft(acc_data.acc_wx)/length(acc_data.acc_wx)))

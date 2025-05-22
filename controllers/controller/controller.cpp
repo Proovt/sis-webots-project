@@ -34,7 +34,7 @@ static float last_robot_time = -INFINITY;
 void controller_init(Pioneer &robot);
 void set_position(Vec &mu, double x, double y);
 void odo_reset();
-void controller_compute_mean_acc(double imu[6], float time, std::string fname, int fcols, double delta_time);
+void controller_compute_mean_acc(double imu[6], float time, double delta_time);
 double compute_delta_time(double last_time, double current_time);
 
 int main(int argc, char **argv)
@@ -48,13 +48,16 @@ int main(int argc, char **argv)
   int f_example_cols = init_csv(f_example, "time, light, accx, accy, accz,"); // <-- don't forget the comma at the end of the string!!
 
   std::string f_odo_enc = "odo_enc.csv";
-  int f_odo_enc_cols = init_csv(f_odo_enc, "time, x, y,"); // <-- don't forget the comma at the end of the string!!
+  int f_odo_enc_cols = init_csv(f_odo_enc, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
 
   std::string f_odo_acc = "odo_acc.csv";
-  int f_odo_acc_cols = init_csv(f_odo_acc, "time, x, y,"); // <-- don't forget the comma at the end of the string!!
+  int f_odo_acc_cols = init_csv(f_odo_acc, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
 
   std::string f_odo_enc_sigma = "odo_enc_sigma.csv";
   int f_odo_enc_sigma_cols = init_csv(f_odo_enc_sigma, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
+
+  std::string f_odo = "odo.csv";
+  int f_odo_cols = init_csv(f_odo, "time, x, y,"); // <-- don't forget the comma at the end of the string!!
 
   std::string f_sensor = "sensor_data.csv";
   int f_sensor_cols = init_csv(f_sensor, "time, id, signal_strength, x, y, Ti, To,"); // <-- don't forget the comma at the end of the string!!
@@ -104,7 +107,7 @@ int main(int argc, char **argv)
     // Accelerometer and Gyroscope bias computation
     if (!acc_mean_computed)
     {
-      controller_compute_mean_acc(imu, time, f_odo_acc, f_odo_acc_cols, delta_time);
+      controller_compute_mean_acc(imu, time, delta_time);
       // skip odometry as long as mean is computed
       continue;
     }
@@ -131,18 +134,41 @@ int main(int argc, char **argv)
     odo_compute_acc(_odo_speed_acc, imu, imu_mean, delta_time);
 
     // Kalman Filter
-    prediction_step_enc(mu_enc, Sigma_enc, _odo_speed_enc, delta_time);
-    prediction_step_acc(mu_acc, Sigma_acc, _odo_speed_acc, delta_time);
+    // mu_enc = mu;
+    // mu_acc = mu;
 
-    if(signal_strength > SIGNAL_STRENGTH_THRESHOLD) {
-      double var = 1234;
+    // Mat Sigma_enc = Sigma;
+    // Mat Sigma_acc = Sigma;
+
+    prediction_step_acc(mu_acc, Sigma_acc, _odo_speed_acc, delta_time);
+    prediction_step_enc(mu, Sigma, _odo_speed_enc, delta_time);
+
+    // Fuse sensor values
+
+    // S = C / d²
+    update_step_sensors(mu, mu_acc, Sigma, Sigma_acc);
+
+    if (signal_strength > SIGNAL_STRENGTH_THRESHOLD)
+    {
+      double var = 0.01; // 0.8 - 1.06 / signal_strength;
       Vec2D measurements(data[1], data[2]);
-      printf("position before: %f, %f; ", mu_enc(0), mu_enc(1));
-      update_step_sensor(Sigma_enc, mu_enc, measurements, var);
-      printf("position after: %f, %f\n", mu_enc(0), mu_enc(1));
+      printf("position before: %f, %f; ", mu(0), mu(1));
+      update_step_sensor_node(mu, measurements, Sigma, var);
+      printf("position after: %f, %f\n", mu(0), mu(1));
       // set_position(mu_enc, data[1], data[2]);
       // printf("Set robot position: [%f, %f]\n", mu_enc(0), mu_enc(1));
     }
+
+    bool in_corridor = true;
+
+    if (!in_corridor)
+    {
+      // test walls
+      // double front_left = se
+    }
+
+    // for logging difference
+    prediction_step_enc(mu_enc, Sigma_enc, _odo_speed_enc, delta_time);
 
     // Update values
     for (int i = 0; i < 2; i++)
@@ -161,11 +187,14 @@ int main(int argc, char **argv)
     log_csv(f_example, f_example_cols, time, light, imu[0], imu[1], imu[2]);
 
     // Log pose
-    log_csv(f_odo_enc, f_odo_enc_cols, time, mu_enc(0), mu_enc(1));
-    log_csv(f_odo_acc, f_odo_acc_cols, time, mu_acc(0), mu_acc(1));
+    log_csv(f_odo, f_odo_cols, time, mu(0), mu(1), mu(2));
+
+    // Log reference pose
+    log_csv(f_odo_enc, f_odo_enc_cols, time, mu_enc(0), mu_enc(1), mu_enc(2));
+    log_csv(f_odo_acc, f_odo_acc_cols, time, mu_acc(0), mu_acc(1), mu_acc(2));
 
     // Log uncertainty
-    log_csv(f_odo_enc_sigma, f_odo_enc_sigma_cols, time, Sigma_enc(0, 0), Sigma_enc(1, 1), Sigma_enc(2, 2));
+    // log_csv(f_odo_enc_sigma, f_odo_enc_sigma_cols, time, Sigma_enc(0, 0), Sigma_enc(1, 1), Sigma_enc(2, 2));
 
     if (signal_strength > 0)
     {
@@ -202,7 +231,7 @@ double compute_delta_time(double last_time, double current_time)
 /**
  * @brief      Compute the mean of the 3-axis accelerometer for about TIME_INIT_ACC seconds. The result is stored in array imu_mean
  */
-void controller_compute_mean_acc(double imu[6], float time, std::string fname, int fcols, double delta_time)
+void controller_compute_mean_acc(double imu[6], float time, double delta_time)
 {
   static int count = 0;
 
@@ -213,8 +242,6 @@ void controller_compute_mean_acc(double imu[6], float time, std::string fname, i
     printf("computing acc\n");
     for (int i = 0; i < 5; i++)
       imu_mean[i] += imu[i];
-
-    // log_csv(fname, fcols, time, imu[0], 0., 0., 0., 0., imu[1], 0., 0., 0., 0.);
   }
 
   if (count == (int)((double)(TIME_INIT_ACC) / delta_time))
@@ -241,7 +268,8 @@ void odo_reset()
   memset(&_odo_speed_acc, 0, sizeof(pose_t));
 }
 
-void set_position(Vec &mu, double x, double y) {
+void set_position(Vec &mu, double x, double y)
+{
   mu(0) = x;
   mu(1) = y;
 }

@@ -15,7 +15,7 @@
 #define SIGMA_ACC 0.05                 // [m/s^2]
 #define SIGMA_GYR 0.025                // [rad/s]
 #define SIGMA_V_ENC 0.05               // [m/s] (empirical)
-#define SIGMA_OMEGA_ENC 10 * SIGMA_GYR // [rad/s] (empirical)
+#define SIGMA_OMEGA_ENC 100 * SIGMA_GYR // [rad/s] (empirical)
 
 typedef Eigen::Matrix<double, DIM, DIM> Mat; // DIMxDIM matrix
 typedef Eigen::Matrix<double, -1, -1> MatX;  // Arbitrary size matrix
@@ -155,14 +155,32 @@ void prediction_step_enc(Vec &mu, Mat &Sigma, pose_t &odo_speed_enc, double delt
 }
 
 /* Update step */
-void update_step(Mat &Sigma, MatX &C, MatX &Q, Vec &mu, Vec2D &measurement)
+void update_step(Vec &mu, Vec2D &measurement, Mat &Sigma, MatX &Q, MatX &C)
 {
     MatX K = Sigma * C.transpose() * (C * Sigma * C.transpose() + Q).inverse();
     mu = mu + K * (measurement - C * mu);
     Sigma = (I - K * C) * Sigma;
 }
 
-void update_step_sensor(Mat &Sigma, Vec &mu, Vec2D &measurement, double sensor_var)
+void update_step_sensors(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_acc) { 
+    // Assume C = I3
+    // std::cout << "Matrix Sigma enc is:\n" << Sigma_enc << std::endl;
+    // std::cout << "Matrix Sigma acc is:\n" << Sigma_acc << std::endl;
+    // std::cout << std::endl;
+    Mat K = Sigma_enc * (Sigma_enc + Sigma_acc).inverse();
+
+    // std::cout << "K: " << std::endl;
+    if(kal_check_nan(K)) return;
+
+    // Print the matrix
+    // std::cout << "Matrix K is:\n" << K << std::endl;
+
+    mu_enc = mu_enc + K * (mu_acc - mu_enc);
+    Sigma_enc = (I - K) * Sigma_enc;
+}
+
+
+void update_step_sensor_node(Vec &mu, Vec2D &measurement, Mat &Sigma, double sensor_var)
 {
     MatX C(2, DIM);
     C << 1, 0, 0,
@@ -172,7 +190,7 @@ void update_step_sensor(Mat &Sigma, Vec &mu, Vec2D &measurement, double sensor_v
     Q << sensor_var, 0,
         0, sensor_var;
 
-    update_step(Sigma, C, Q, mu, measurement);
+    update_step(mu, measurement, Sigma, Q, C);
 }
 
 void update_step_wall(Mat &Sigma, Vec &mu, Vec2D &measurement, double sensor_var)
@@ -185,7 +203,7 @@ void update_step_wall(Mat &Sigma, Vec &mu, Vec2D &measurement, double sensor_var
     Q << sensor_var, 0,
         0, sensor_var;
 
-    update_step(Sigma, C, Q, mu, measurement);
+    update_step(mu, measurement, Sigma, Q, C);
 }
 
 /* void extended_kalman_filter_enc() {
