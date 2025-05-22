@@ -25,6 +25,10 @@ enc_filename = '../../../controllers/controller/data/odo_enc.csv';
 enc_data = readtable(enc_filename);
 enc_data.Properties.VariableNames = strtrim(enc_data.Properties.VariableNames);
 
+sensors = [1.79621 -0.115357;
+    4.62 1.21;
+    1.30989 2.56938;
+    4.06932 3.90368];
 
 %% Plot position using both encoder and accelerometer
 
@@ -36,6 +40,7 @@ plot(truth_data.x, truth_data.y, DisplayName="Ground Thruth : GPS"); hold on;
 plot(odo_data.x, odo_data.y, DisplayName="Fusion");
 plot(enc_data.x, enc_data.y, LineStyle="--", DisplayName="Encoders");
 plot(acc_data.x, acc_data.y, LineStyle="--", DisplayName="Accelerometer");
+scatter(sensors(:, 1), sensors(:, 2), DisplayName="Sensor", Marker="x")
 title("x trajectory : odometry vs ground truth (gps)");
 legend();
 xlabel('x [m]'); ylabel('y [m]');
