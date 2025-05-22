@@ -34,8 +34,6 @@ static Vec mu = Vec::Zero();
 // State covariance sigma to be updated by the Kalman filter functions
 static Mat sigma = Mat::Zero();
 
-static MatX H(2, DIM);
-
 static double sigma_acc_v = 0;
 
 /**
@@ -93,14 +91,6 @@ bool kal_check_nan(const MatX &m)
 ///////////////////////////////////////////////////
 // TODO: implement your Kalman filter here after //
 ///////////////////////////////////////////////////
-/* void init_kalman_filter() {
-    Mat Sigma = Mat::Zero();
-    Vec mu = Vec::Zero();
-
-    H << 1, 0, 0,
-         0, 1, 0;
-} */
-
 void calculate_sigma_u(Mat &Sigma, double sigma_acc_vx, double sigma_acc_vy, double sigma_gyr)
 {
     Sigma << sigma_acc_vx * sigma_acc_vx, 0, 0,
@@ -164,21 +154,21 @@ void prediction_step_enc(Vec &mu, Mat &Sigma, pose_t &odo_speed_enc, double delt
 }
 
 /* Update step */
-void update_step(Vec &mu, Vec2D &measurement, Mat &Sigma, MatX &Q, MatX &C)
+void update_step(Vec &mu, Vec2D &measurement, Mat &Sigma, MatX &Q, MatX &H)
 {
-    MatX K = Sigma * C.transpose() * (C * Sigma * C.transpose() + Q).inverse();
-    mu = mu + K * (measurement - C * mu);
-    Sigma = (I - K * C) * Sigma;
+    MatX K = Sigma * H.transpose() * (H * Sigma * H.transpose() + Q).inverse();
+    mu = mu + K * (measurement - H * mu);
+    Sigma = (I - K * H) * Sigma;
 }
 
 void update_step_sensors(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_acc)
 {
     // Only consider gyroscope
-    Mat C;
-    C << 0, 0, 0,
+    Mat H;
+    H << 0, 0, 0,
         0, 0, 0,
         0, 0, 1;
-    Mat K = Sigma_enc * C.transpose() * (C * Sigma_enc * C.transpose() + Sigma_acc).inverse();
+    Mat K = Sigma_enc * H.transpose() * (H * Sigma_enc * H.transpose() + Sigma_acc).inverse();
     // Mat K = Sigma_enc * (Sigma_enc + Sigma_acc).inverse();
 
     // std::cout << "K: " << std::endl;
@@ -188,8 +178,8 @@ void update_step_sensors(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_ac
     // Print the matrix
     // std::cout << "Matrix K is:\n" << K << std::endl;
 
-    mu = mu + K * (mu_acc - C * mu);
-    Sigma_enc = (I - K * C) * Sigma_enc;
+    mu = mu + K * (mu_acc - H * mu);
+    Sigma_enc = (I - K * H) * Sigma_enc;
 
     // mu_enc = mu_enc + K * (mu_acc - mu_enc);
     // Sigma_enc = (I - K) * Sigma_enc;
@@ -197,28 +187,28 @@ void update_step_sensors(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_ac
 
 void update_step_sensor_node(Vec &mu, Vec2D &measurement, Mat &Sigma, double sensor_var)
 {
-    MatX C(2, DIM);
-    C << 1, 0, 0,
+    MatX H(2, DIM);
+    H << 1, 0, 0,
         0, 1, 0;
 
     MatX Q(2, 2);
     Q << sensor_var, 0,
         0, sensor_var;
 
-    update_step(mu, measurement, Sigma, Q, C);
+    update_step(mu, measurement, Sigma, Q, H);
 }
 
 void update_step_wall(Mat &Sigma, Vec &mu, Vec2D &measurement, double sensor_var)
 {
-    MatX C(2, DIM);
-    C << 1, 0, 0,
+    MatX H(2, DIM);
+    H << 1, 0, 0,
         0, 1, 0;
 
     MatX Q(2, 2);
     Q << sensor_var, 0,
         0, sensor_var;
 
-    update_step(mu, measurement, Sigma, Q, C);
+    update_step(mu, measurement, Sigma, Q, H);
 }
 
 /* void extended_kalman_filter_enc() {
