@@ -121,17 +121,26 @@ void prediction_step(Vec &mu, Mat &Sigma, pose_t &odo_speed, Mat &Sigma_u, doubl
     // local frame of reference: speed_x = speed, speed_y = 0, angular_speed = omega
     Vec u(odo_speed.x, 0, odo_speed.heading);
 
+    // Process matrix
+    Mat F;
+
+    // cos(v_x) * heading * dt
+    F << 1, 0, cos(u(0)) * mu(2) * delta_time,
+        // sin(v_x) * heading * dt
+        0, 1, sin(u(0)) * mu(2) * delta_time,
+        0, 0, 1;
+
     Mat T;
     // initialize T
     calculate_T(T, mu(2));
 
-    Mat B = T * delta_time;
+    Mat G = T * delta_time;
 
-    Mat R = B * Sigma_u * B.transpose();
+    Mat R = G * Sigma_u * G.transpose();
 
-    mu = mu + B * u;
+    mu = mu + G * u;
 
-    Sigma = Sigma + R;
+    Sigma = F * Sigma * F.transpose() + R;
 }
 
 void prediction_step_acc(Vec &mu, Mat &Sigma, pose_t &odo_speed_acc, double delta_time)
