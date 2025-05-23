@@ -185,8 +185,8 @@ int main(int argc, char **argv)
     double lws = 0.0, rws = 0.0;         // left and right wheel speeds
     // fsm(ps_values, lws, rws);            // finite state machine
 
-    double pose[4];
-    robot.get_ground_truth_pose(pose);
+    double pose[4] = {mu(0), mu(1), mu(2), time};
+    // robot.get_ground_truth_pose(pose);
 
     braitenberg(ps_values, lws, rws, pose);
     robot.set_motors_velocity(lws, rws); // set the wheel velocities
