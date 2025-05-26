@@ -148,24 +148,25 @@ int main(int argc, char **argv)
     // S = C / d^2
     update_step_sensors(mu, mu_acc, Sigma, Sigma_acc);
 
-    if (signal_strength > SIGNAL_STRENGTH_THRESHOLD)
+
+    double truth_pose[4];
+    robot.get_ground_truth_pose(truth_pose);
+ 
+    if (signal_strength > SIGNAL_STRENGTH_THRESHOLD)  
     {
-
-      double pose[4];
-      robot.get_ground_truth_pose(pose);
-
       double C = 1.07;
       double h = 1 - 0.277;
       double d_sqr = C / signal_strength;
       double radius = sqrt(d_sqr - h * h);
-      printf("radius: %f, radius^2: %f ", radius, radius * radius);
+      // printf("radius: %f, radius^2: %f ", radius, radius * radius);
+      printf("x: %f, y: %f\n", truth_pose[0], truth_pose[1]);
 
-      double x = data[1] - pose[0];
-      double y = data[2] - pose[1];
+      double x = data[1] - truth_pose[0];
+      double y = data[2] - truth_pose[1];
 
       double real_distance_sqr = x * x + y * y + h * h;
       double real_distance = sqrt(real_distance_sqr);
-      double calc_C = signal_strength / real_distance_sqr;
+      double calc_C = signal_strength * real_distance_sqr;
 
       log_csv(f_sensor_node, f_sensor_node_cols, data[0], signal_strength, sqrt(d_sqr), real_distance, calc_C);
 
@@ -199,7 +200,6 @@ int main(int argc, char **argv)
     // fsm(ps_values, lws, rws);            // finite state machine
 
     double pose[4] = {mu(0), mu(1), mu(2), time};
-    // robot.get_ground_truth_pose(pose);
 
     braitenberg(ps_values, lws, rws, pose);
     robot.set_motors_velocity(lws, rws); // set the wheel velocities
