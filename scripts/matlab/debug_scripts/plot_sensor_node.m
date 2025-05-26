@@ -17,6 +17,12 @@ node_data.Properties.VariableNames = strtrim(node_data.Properties.VariableNames)
 
 %%
 hold on
+plot(node_data.distance_calc, DisplayName="Calc");
+plot(node_data.real_distance, DisplayName="Real");
+legend
+hold off
+%%
+hold on
 plot(truth_data.x(sync_time_idxs), truth_data.y(sync_time_idxs), node_data.signal_strength);
 scatter3(node_data.x(1), node_data.y(1), 0)
 xlabel('x [m]')
