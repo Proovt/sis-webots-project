@@ -13,8 +13,8 @@
 #include "signal_analysis.hpp"
 
 /*CONSTANTS*/
-#define TIME_INIT_ACC 5               // Time in seconds
-#define SIGNAL_STRENGTH_THRESHOLD 1.8 // Threshold for updating robot position
+#define TIME_INIT_ACC 5             // Time in seconds
+#define SIGNAL_STRENGTH_THRESHOLD 0 // Threshold for updating robot position
 
 /*VERBOSE_FLAGS*/
 #define VERBOSE_ACC_MEAN true         // Prints accelerometer mean values
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
   int f_sensor_cols = init_csv(f_sensor, "time, id, signal_strength, x, y, Ti, To,"); // <-- don't forget the comma at the end of the string!!
 
   std::string f_sensor_node = "sensor_node.csv";
-  int f_sensor_node_cols = init_csv(f_sensor_node, "id, distance, signal_stregth, C,"); // <-- don't forget the comma at the end of the string!!
+  int f_sensor_node_cols = init_csv(f_sensor_node, "id, signal_stregth, distance_calc, real_distance, C,"); // <-- don't forget the comma at the end of the string!!
 
   // init Kalman
   Mat Sigma = Mat::Zero();
@@ -150,14 +150,27 @@ int main(int argc, char **argv)
 
     if (signal_strength > SIGNAL_STRENGTH_THRESHOLD)
     {
+
+      double pose[4];
+      robot.get_ground_truth_pose(pose);
+
       double C = 1.07;
       double h = 1 - 0.277;
       double d_sqr = C / signal_strength;
       double radius = sqrt(d_sqr - h * h);
       printf("radius: %f, radius^2: %f ", radius, radius * radius);
 
-      double var = radius * radius; // 0.8 - 1.06 / signal_strength;
-      // double var = 1e-7;
+      double x = data[1] - pose[0];
+      double y = data[2] - pose[1];
+
+      double real_distance_sqr = x * x + y * y + h * h;
+      double real_distance = sqrt(real_distance_sqr);
+      double calc_C = signal_strength / real_distance_sqr;
+
+      log_csv(f_sensor_node, f_sensor_node_cols, data[0], signal_strength, sqrt(d_sqr), real_distance, calc_C);
+
+      // double var = radius * radius; // 0.8 - 1.06 / signal_strength;
+      double var = 1e-7;
       Vec2D measurements(data[1], data[2]);
       printf("position before: %f, %f; ", mu(0), mu(1));
       update_step_sensor_node(mu, measurements, Sigma, var);
@@ -182,7 +195,7 @@ int main(int argc, char **argv)
       odo_enc_prev[i] = wheel_rot[i];
 
     // NAVIGATION
-    double lws = 0.0, rws = 0.0;         // left and right wheel speeds
+    double lws = 0.0, rws = 0.0; // left and right wheel speeds
     // fsm(ps_values, lws, rws);            // finite state machine
 
     double pose[4] = {mu(0), mu(1), mu(2), time};
