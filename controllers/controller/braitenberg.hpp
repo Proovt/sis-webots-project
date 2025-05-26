@@ -38,7 +38,8 @@ enum RobotState
     NAVIGATE,
     TURNING,
     EMERGENCY_BACKUP,
-    STRAIGHT
+    STRAIGHT,
+    STOP_2
 };
 const char *getStateName(RobotState state)
 {
@@ -100,6 +101,7 @@ void braitenberg(double *ps, double &vel_left, double &vel_right, double pose[4]
     // heading variable
     double h = pose[2];
     double x = pose[0];
+    double y = pose[1];
 
     if (x < 1)
     {
@@ -115,6 +117,26 @@ void braitenberg(double *ps, double &vel_left, double &vel_right, double pose[4]
     {
         no_turn = true;
     }
+
+    ////////////////////// STOP ///////////////////////////////////////
+
+
+    bool at_final_stop = (y > 3.5 && y < 4.5 && x < 0);  // adapt to map
+    static int stop_counter = 0;
+    const int stop_confirm_duration = 150;
+
+    if (at_final_stop) {
+        stop_counter++;
+        if (stop_counter > stop_confirm_duration) {
+            state = STOP_2;
+            return;
+        }
+    } else {
+        stop_counter = 0;
+    }
+
+
+
 
     /////////////////turn left ///////////////////////////
     if (turn_left)
@@ -140,7 +162,7 @@ void braitenberg(double *ps, double &vel_left, double &vel_right, double pose[4]
                     break;
                 }
             }
-            if (out_cor)
+            if (out_cor && !at_final_stop)
             {
                 state = TURNING;
                 is_end_of_corridor = true;
@@ -172,7 +194,7 @@ void braitenberg(double *ps, double &vel_left, double &vel_right, double pose[4]
                     break;
                 }
             }
-            if (out_cor)
+            if (out_cor && !at_final_stop)
             {
                 state = TURNING;
                 is_end_of_corridor = true;
@@ -349,6 +371,15 @@ void braitenberg(double *ps, double &vel_left, double &vel_right, double pose[4]
 
         vel_left = 0.5;
         vel_right = 0.5;
+        break;
+
+    
+
+    case STOP_2:
+
+        vel_left = 0.0;
+        vel_right = 0.0;
+        break;
     }
 
     if (VERBOSE_STATE_NAME)
