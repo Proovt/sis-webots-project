@@ -188,9 +188,9 @@ int main(int argc, char **argv)
       // double var = radius * radius; // 0.8 - 1.06 / signal_strength;
       double var = 0.05;
       // Vec2D measurements(data[1], data[2]);
-      printf("position before: %f, %f; ", mu(0), mu(1));
+      // printf("position before: %f, %f; ", mu(0), mu(1));
       update_step_sensor_node(mu, estimated_pos, Sigma, var);
-      printf("position after: %f, %f\n", mu(0), mu(1));
+      // printf("position after: %f, %f\n", mu(0), mu(1));
       // set_position(mu_enc, data[1], data[2]);
       // printf("Set robot position: [%f, %f]\n", mu_enc(0), mu_enc(1));
     }
