@@ -262,9 +262,9 @@ void braitenberg(double *ps, double &vel_left, double &vel_right, double pose[4]
 
         for (int i = 0; i < 8; ++i)
         {
-            if (ps[i] < 900)
+            if (ps[i] < 940)
                 ps[i] = 800;                                                // Ignore far sensors
-            double influence = pow(((double)ps[i] - 800) / (990 - 800), 4); // Stronger nonlinear amplification
+            double influence = pow(((double)ps[i] - 800) / (960 - 800), 4); // Stronger nonlinear amplification
 
             influence_sum_l += std::abs(braitenberg_coefficients[i][0] * influence);
             influence_sum_r += std::abs(braitenberg_coefficients[i][1] * influence);
