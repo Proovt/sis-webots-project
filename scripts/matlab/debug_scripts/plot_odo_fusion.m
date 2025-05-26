@@ -42,7 +42,7 @@ f = figure('Name','Webots : Odometry using wheel encoder [m/s^2]');
 
 % Plot x : odometry vs ground truth (gps)
 plot(truth_data.x, truth_data.y, DisplayName="Ground Thruth : GPS"); hold on;
-scatter(odo_data.x, odo_data.y, DisplayName="Fusion", LineWidth=0.4);
+plot(odo_data.x, odo_data.y, DisplayName="Fusion", LineWidth=0.1);
 plot(enc_data.x, enc_data.y, LineStyle="--", DisplayName="Encoders");
 % plot(acc_data.x ./ scale, acc_data.y ./ scale, LineStyle="--", DisplayName="Accelerometer");
 scatter(sensors(:, 1), sensors(:, 2), DisplayName="Sensor", Marker="x")

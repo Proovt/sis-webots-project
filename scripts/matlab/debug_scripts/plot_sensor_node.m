@@ -19,6 +19,7 @@ node_data.Properties.VariableNames = strtrim(node_data.Properties.VariableNames)
 hold on
 plot(node_data.distance_calc, DisplayName="Calc");
 plot(node_data.real_distance, DisplayName="Real");
+plot(node_data.signal_stregth, DisplayName="signal");
 legend
 hold off
 %%
