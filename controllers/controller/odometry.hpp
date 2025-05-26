@@ -44,7 +44,7 @@ void odo_compute_encoders(pose_t &odo_speed, double Aleft_enc, double Aright_enc
 	Aright_enc *= pioneer_info.wheel_radius;
 
 	// Comupute speeds: Compute the forward and the rotational speed
-	double omega = (Aright_enc - Aleft_enc) / ((pioneer_info.width + 0.09) * delta_time);
+	double omega = (Aright_enc - Aleft_enc) / ((pioneer_info.width + 0.092) * delta_time);
 	double speed = (Aright_enc + Aleft_enc) / (2.0 * delta_time);
 
 	odo_speed.x = speed;
