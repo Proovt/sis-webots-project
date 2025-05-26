@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string>
 
-#define VERBOSE_STATE_NAME false
+#define VERBOSE_STATE_NAME true
 #define VERBOSE_EMERGENCY_BACKUP false
 #define VERBOSE_TURN false
 
@@ -70,6 +70,7 @@ void braitenberg(double *ps, double &vel_left, double &vel_right, double pose[4]
     static bool turn_left = true;
     static bool no_turn = true;
     static bool is_end_of_corridor = false;
+    static bool pot_found = false;
 
     /*     double braitenberg_coefficients[16][2] = {
             {-0.6, -0.2}, {-0.5, -0.2}, {-0.4, -0.2}, {-0.3, -0.1},   // Front-left
@@ -143,11 +144,13 @@ void braitenberg(double *ps, double &vel_left, double &vel_right, double pose[4]
     {
         if (is_end_of_corridor)
         {
+            pot_found = pot_found || ps[0] > 800 || ps[15] > 800;
 
             if (h > 3)
             {
                 is_end_of_corridor = false;
                 state = NAVIGATE;
+                pot_found = false;
             }
         }
         else
@@ -305,14 +308,16 @@ void braitenberg(double *ps, double &vel_left, double &vel_right, double pose[4]
                 printf("\ncorrection = %f\n", correction);
             }
 
-            if (sensor_left < 850)
+            if (pot_found && sensor_left < 850)
             {
                 vel_left = 0.5;
                 vel_right = 0.5;
             }
             else if (ps[0] < ps[15])
             {
-                vel_left = 0.2 + correction / 2;
+                double correction_val = 0.2 + correction / 2;
+
+                vel_left = std::min(std::max(correction_val, -3.), 3.);
                 vel_right = 0.7 - correction;
             }
             else if (ps[0] > ps[15])
