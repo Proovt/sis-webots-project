@@ -13,8 +13,9 @@
 #include "signal_analysis.hpp"
 
 /*CONSTANTS*/
-#define TIME_INIT_ACC 5             // Time in seconds
-#define SIGNAL_STRENGTH_THRESHOLD 0 // Threshold for updating robot position
+#define TIME_INIT_ACC 5          // Time in seconds
+#define MIN_SIGNAL_STRENGTH 1.50 // Threshold for updating robot position
+#define MAX_SIGNAL_STRENGTH 2.02 // Threshold for updating robot position
 
 /*VERBOSE_FLAGS*/
 #define VERBOSE_ACC_MEAN true         // Prints accelerometer mean values
@@ -79,6 +80,9 @@ int main(int argc, char **argv)
 
   while (robot.step() != -1)
   {
+    double truth_pose[4];
+    robot.get_ground_truth_pose(truth_pose);
+
     //////////////////////////////
     // Measurements acquisition //
     //////////////////////////////
@@ -148,33 +152,44 @@ int main(int argc, char **argv)
     // S = C / d^2
     update_step_sensors(mu, mu_acc, Sigma, Sigma_acc);
 
-
-    double truth_pose[4];
-    robot.get_ground_truth_pose(truth_pose);
- 
-    if (signal_strength > SIGNAL_STRENGTH_THRESHOLD)  
+    // signal strength below threshold to avoid negative sqrt
+    if (signal_strength > MIN_SIGNAL_STRENGTH && signal_strength < MAX_SIGNAL_STRENGTH)
     {
-      double C = 1.07;
+      double C = 1.08;
       double h = 1 - 0.277;
       double d_sqr = C / signal_strength;
       double radius = sqrt(d_sqr - h * h);
+      printf("sqrt: %f, strength: %f\n", radius, signal_strength);
       // printf("radius: %f, radius^2: %f ", radius, radius * radius);
-      printf("x: %f, y: %f\n", truth_pose[0], truth_pose[1]);
 
-      double x = data[1] - truth_pose[0];
-      double y = data[2] - truth_pose[1];
+      Vec2D last_pos(mu(0), mu(1));
+      Vec2D sensor_pos(data[1], data[2]);
 
-      double real_distance_sqr = x * x + y * y + h * h;
-      double real_distance = sqrt(real_distance_sqr);
-      double calc_C = signal_strength * real_distance_sqr;
+      Vec2D diff = last_pos - sensor_pos;
+      diff.normalize();
 
-      log_csv(f_sensor_node, f_sensor_node_cols, data[0], signal_strength, sqrt(d_sqr), real_distance, calc_C);
+      Vec2D bias = Vec2D::Ones() * .01;
+      bias[0] *= cos(mu(2));
+      bias[1] *= sin(mu(2));
+
+      /* MatX head_change;
+      head_change << cos(mu(2)), 0,
+          0, sin(mu(2)); */
+
+      // std::cout << head_change * bias << std::endl;
+
+      Vec2D estimated_pos = sensor_pos + diff * radius + bias;
+
+      // printf("cur position: %f, %f; ", last_pos(0), last_pos(1));
+      // printf("est position: %f, %f\n", estimated_pos(0), estimated_pos(1));
+
+      // std::cout << "\n" << estimated_pos << " vs. \n" << last_pos << "\n" << std::endl;
 
       // double var = radius * radius; // 0.8 - 1.06 / signal_strength;
-      double var = 1e-7;
-      Vec2D measurements(data[1], data[2]);
+      double var = 0.05;
+      // Vec2D measurements(data[1], data[2]);
       printf("position before: %f, %f; ", mu(0), mu(1));
-      update_step_sensor_node(mu, measurements, Sigma, var);
+      update_step_sensor_node(mu, estimated_pos, Sigma, var);
       printf("position after: %f, %f\n", mu(0), mu(1));
       // set_position(mu_enc, data[1], data[2]);
       // printf("Set robot position: [%f, %f]\n", mu_enc(0), mu_enc(1));
@@ -201,7 +216,7 @@ int main(int argc, char **argv)
 
     double pose[4] = {mu(0), mu(1), mu(2), time};
 
-    braitenberg(ps_values, lws, rws, pose);
+    braitenberg(ps_values, lws, rws, truth_pose);
     robot.set_motors_velocity(lws, rws); // set the wheel velocities
 
     //////////////////
