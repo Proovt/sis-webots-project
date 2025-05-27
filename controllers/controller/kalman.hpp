@@ -165,8 +165,8 @@ void update_step_sensors(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_ac
 {
     // Only consider gyroscope
     Mat H;
-    H << 0, 0, 0,
-        0, 0, 0,
+    H << 1, 0, 0,
+        0, 1, 0,
         0, 0, 1;
     Mat K = Sigma_enc * H.transpose() * (H * Sigma_enc * H.transpose() + Sigma_acc).inverse();
     // Mat K = Sigma_enc * (Sigma_enc + Sigma_acc).inverse();

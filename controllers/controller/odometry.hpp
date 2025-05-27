@@ -8,6 +8,7 @@
 #include <memory.h>
 
 #include "pioneer_interface/pioneer_interface.hpp"
+#include "moving_window.hpp"
 
 #define RAD2DEG(X) X / M_PI * 180.0 // Convert radians to degrees
 
@@ -18,15 +19,20 @@ typedef struct
 	double heading;
 } pose_t;
 
+static MovingAverage acc_x_avg, acc_y_avg;
+
 void odo_compute_acc(pose_t &odo_speed, const double imu[6], const double imu_mean[6], double delta_time)
 {
-	// Remove bias
+	// Remove static bias
 	double acc_normalized_x = imu[0] - imu_mean[0];
 	double acc_normalized_y = imu[1] - imu_mean[1];
 	double gyro_normalized_z = imu[5] - imu_mean[5];
 
-	odo_speed.x += acc_normalized_x * delta_time;
-	odo_speed.y += acc_normalized_y * delta_time;
+	acc_x_avg.slide(acc_normalized_x);
+	acc_y_avg.slide(acc_normalized_y);
+
+	odo_speed.x += acc_x_avg.compute_average() * delta_time;
+	odo_speed.y += acc_y_avg.compute_average() * delta_time;
 	odo_speed.heading = gyro_normalized_z;
 }
 

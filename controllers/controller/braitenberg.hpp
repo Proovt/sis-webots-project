@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string>
 
-#define VERBOSE_STATE_NAME true
+#define VERBOSE_STATE_NAME false
 #define VERBOSE_EMERGENCY_BACKUP false
 #define VERBOSE_TURN false
 
