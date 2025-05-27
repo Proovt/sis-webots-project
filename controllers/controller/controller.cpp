@@ -22,6 +22,7 @@
 #define VERBOSE_ACC false             // Prints accelerometer values
 #define VERBOSE_PS false              // Prints proximity sensor values
 #define VERBOSE_SIGNAL_STRENGTH false // Prints signal stregth and packet data
+#define VERBOSE_SIGNAL_RADIUS false // Prints the sqrt
 
 /*VARIABLES*/
 static pose_t _odo_speed_acc, _odo_speed_enc;
@@ -149,7 +150,6 @@ int main(int argc, char **argv)
 
     // Fuse sensor values
 
-    // S = C / d^2
     update_step_sensors(mu, mu_acc, Sigma, Sigma_acc);
 
     // signal strength below threshold to avoid negative sqrt
@@ -159,7 +159,11 @@ int main(int argc, char **argv)
       double h = 1 - 0.277;
       double d_sqr = C / signal_strength;
       double radius = sqrt(d_sqr - h * h);
-      printf("sqrt: %f, strength: %f\n", radius, signal_strength);
+
+      if(VERBOSE_SIGNAL_RADIUS) {
+        printf("Radius: %f, Signal strength: %f\n", radius, signal_strength);
+
+      }
       // printf("radius: %f, radius^2: %f ", radius, radius * radius);
 
       Vec2D last_pos(mu(0), mu(1));
@@ -216,7 +220,7 @@ int main(int argc, char **argv)
 
     double pose[4] = {mu(0), mu(1), mu(2), time};
 
-    braitenberg(ps_values, lws, rws, truth_pose);
+    braitenberg(ps_values, lws, rws, pose);
     robot.set_motors_velocity(lws, rws); // set the wheel velocities
 
     //////////////////
