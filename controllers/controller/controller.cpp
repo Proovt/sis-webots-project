@@ -14,8 +14,8 @@
 
 /*CONSTANTS*/
 #define TIME_INIT_ACC 5          // Time in seconds
-#define MIN_SIGNAL_STRENGTH 1.50 // Threshold for updating robot position
-#define MAX_SIGNAL_STRENGTH 2.02 // Threshold for updating robot position
+#define MIN_SIGNAL_STRENGTH 1.50
+#define MAX_SIGNAL_STRENGTH 2.02 
 
 /*VERBOSE_FLAGS*/
 #define VERBOSE_ACC_MEAN true         // Prints accelerometer mean values
@@ -60,8 +60,8 @@ int main(int argc, char **argv)
   std::string f_odo = "odo.csv";
   int f_odo_cols = init_csv(f_odo, "time, x, y,"); // <-- don't forget the comma at the end of the string!!
 
-  std::string f_sensor = "sensor_data.csv";
-  int f_sensor_cols = init_csv(f_sensor, "time, id, signal_strength, x, y, Ti, To,"); // <-- don't forget the comma at the end of the string!!
+  std::string f_sensor = "sensor_data.csv"; // Linus hat kaputt gemacht
+  int f_sensor_cols = init_csv(f_sensor, "time, ID, signal_strength, x, y, T_in, T_out,"); // <-- don't forget the comma at the end of the string!!
 
   std::string f_sensor_node = "sensor_node.csv";
   int f_sensor_node_cols = init_csv(f_sensor_node, "id, signal_stregth, distance_calc, real_distance, C,"); // <-- don't forget the comma at the end of the string!!
