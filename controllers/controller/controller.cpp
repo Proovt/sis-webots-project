@@ -11,6 +11,7 @@
 #include "FSM.hpp"
 #include "serial.hpp"
 #include "signal_analysis.hpp"
+#include "feature_detection.hpp"
 
 /*CONSTANTS*/
 #define TIME_INIT_ACC 5 // Time in seconds
@@ -22,7 +23,6 @@
 #define VERBOSE_ACC false             // Prints accelerometer values
 #define VERBOSE_PS false              // Prints proximity sensor values
 #define VERBOSE_SIGNAL_STRENGTH false // Prints signal stregth and packet data
-#define VERBOSE_SIGNAL_RADIUS true   // Prints the sqrt
 
 /*VARIABLES*/
 static pose_t _odo_speed_acc, _odo_speed_enc;
@@ -165,42 +165,12 @@ int main(int argc, char **argv)
     prediction_step_enc(mu_enc, Sigma_enc, _odo_speed_enc, delta_time);
 
     // Fuse sensor values
-    // update_step_sensors_mat(mu, mu_acc, Sigma, Sigma_acc);
     update_step_sensors(mu, heading_enc, Sigma, var_omega_enc);
-
-    if(signal_strength >= MAX_SIGNAL_STRENGTH) {
-      std::cout << "help: " << signal_strength << std::endl;
-    }
 
     // signal strength below threshold to avoid negative sqrt
     if (signal_strength > MIN_SIGNAL_STRENGTH && signal_strength < MAX_SIGNAL_STRENGTH)
     {
-      double C = 1.08;
-      double h = 1 - 0.277;
-      double d_sqr = C / signal_strength;
-      double radius = sqrt(d_sqr - h * h);
-
-      if (VERBOSE_SIGNAL_RADIUS)
-      {
-        printf("Radius: %f, Signal strength: %f\n", radius, signal_strength);
-      }
-      // printf("radius: %f, radius^2: %f ", radius, radius * radius);
-
-      Vec2D last_pos(mu(0), mu(1));
-      Vec2D sensor_pos(data[1], data[2]);
-
-      Vec2D diff = last_pos - sensor_pos;
-      diff.normalize();
-
-      Vec2D bias = Vec2D::Ones() * .01;
-      bias[0] *= cos(mu(2));
-      bias[1] *= sin(mu(2));
-
-      Vec2D estimated_pos = sensor_pos + diff * radius + bias;
-
-      double var = 0.01; // empirical
-
-      update_step_sensor_node(mu, estimated_pos, Sigma, var);
+      handle_sensor_node(data, signal_strength, mu, Sigma);
     }
 
     // Update values
