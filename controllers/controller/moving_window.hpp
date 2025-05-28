@@ -3,29 +3,38 @@
 #include <deque>
 #include <iostream>
 
-#define MAX_WINDOW_SIZE 2000
-
-typedef struct
+class MovingAverage
 {
 private:
-    std::deque<double> moving_avg;
-    double cur_sum = 0;
+    std::deque<double> values_;
+    double cur_sum_;
+    size_t max_window_size_;
 
 public:
+    MovingAverage(size_t window_size = 50)
+        : cur_sum_(0.0), max_window_size_(window_size)
+    {
+        /*
+     if (window_size <= 0) {
+         throw std::invalid_argument("Window size must be greater than 0");
+     }
+  */
+    }
+
     void slide(double new_value)
     {
-        if (moving_avg.size() >= MAX_WINDOW_SIZE)
+        if (values_.size() >= max_window_size_)
         {
-            cur_sum -= moving_avg.front();
-            moving_avg.pop_front();
+            cur_sum_ -= values_.front();
+            values_.pop_front();
         }
 
-        moving_avg.push_back(new_value);
-        cur_sum += new_value;
+        values_.push_back(new_value);
+        cur_sum_ += new_value;
     }
 
     double compute_average()
     {
-        return cur_sum / (double)moving_avg.size();
+        return cur_sum_ / (double)values_.size();
     }
-} MovingAverage;
+};
