@@ -11,11 +11,14 @@
 #include <Eigen/Dense>
 
 /* CONSTANTS */
-#define DIM 3                          // State dimension
-#define SIGMA_ACC 0.05                 // [m/s^2]
-#define SIGMA_GYR 0.025                // [rad/s]
-#define SIGMA_V_ENC 0.05               // [m/s] (empirical)
-#define SIGMA_OMEGA_ENC .3 * SIGMA_GYR // [rad/s] (empirical)
+#define DIM 3                           // State dimension
+#define SIGMA_ACC 0.05                  // [m/s^2]
+#define SIGMA_GYR 0.025                 // [rad/s]
+#define SIGMA_V_ENC 0.05                // [m/s] (empirical)
+#define SIGMA_OMEGA_ENC 5.3 * SIGMA_GYR // [rad/s] (empirical)
+
+
+using namespace std;
 
 typedef Eigen::Matrix<double, DIM, DIM> Mat; // DIMxDIM matrix
 typedef Eigen::Matrix<double, -1, -1> MatX;  // Arbitrary size matrix
@@ -35,6 +38,8 @@ static const Mat I = MatX::Identity(DIM, DIM); // DIMxDIM identity matrix
 // static Mat sigma = Mat::Zero();
 
 static double sigma_acc_v = 0;
+double var_omega_enc = 0;
+double heading_enc = 0;
 
 /**
  * @brief      Get the state dimension
@@ -106,7 +111,36 @@ void calculate_T(Mat &T, double heading)
 }
 
 /* Prediction step */
-void prediction_step(Vec &mu, Mat &Sigma, pose_t &odo_speed, Mat &Sigma_u, double delta_time)
+void prediction_step(Vec &mu, Mat &Sigma, const Vec &u, double delta_time)
+{
+    Mat Sigma_u;
+    calculate_sigma_u(Sigma_u, SIGMA_V_ENC, 0, SIGMA_GYR);
+
+    // Process matrix
+    Mat F;
+
+    // (- sin(heading) * v_x - cos(heading) * v_y) * dt
+    F << 1, 0, -(sin(mu(2)) * u(0) + cos(mu(2)) * u(1)) * delta_time,
+        // (cos(heading) * v_x - sin(heading) * v_y) * dt
+        0, 1, (cos(mu(2)) * u(0) - sin(mu(2)) * u(1)) * delta_time,
+        0, 0, 1;
+
+    Mat T;
+    // initialize T
+    calculate_T(T, mu(2));
+
+    Mat G = T * delta_time;
+
+    Mat R = G * Sigma_u * G.transpose();
+
+    mu = mu + G * u;
+
+    Sigma = F * Sigma * F.transpose() + R;
+}
+
+
+/* Prediction step */
+void prediction_step_global(Vec &mu, Mat &Sigma, pose_t &odo_speed, Mat &Sigma_u, double delta_time)
 {
     // local frame of reference: speed_x = speed, speed_y = 0, angular_speed = omega
     Vec u(odo_speed.x, odo_speed.y, odo_speed.heading);
@@ -139,7 +173,7 @@ void prediction_step_acc(Vec &mu, Mat &Sigma, pose_t &odo_speed_acc, double delt
     Mat Sigma_u;
     calculate_sigma_u(Sigma_u, sigma_acc_v, sigma_acc_v, SIGMA_GYR);
 
-    prediction_step(mu, Sigma, odo_speed_acc, Sigma_u, delta_time);
+    prediction_step_global(mu, Sigma, odo_speed_acc, Sigma_u, delta_time);
 
     sigma_acc_v += SIGMA_ACC * delta_time;
 }
@@ -150,7 +184,7 @@ void prediction_step_enc(Vec &mu, Mat &Sigma, pose_t &odo_speed_enc, double delt
     Mat Sigma_u;
     calculate_sigma_u(Sigma_u, SIGMA_V_ENC, 0, SIGMA_OMEGA_ENC);
 
-    prediction_step(mu, Sigma, odo_speed_enc, Sigma_u, delta_time);
+    prediction_step_global(mu, Sigma, odo_speed_enc, Sigma_u, delta_time);
 }
 
 /* Update step */

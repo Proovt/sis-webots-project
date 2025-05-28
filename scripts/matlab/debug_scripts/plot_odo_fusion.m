@@ -2,7 +2,7 @@
 %   Description: A basic data loading and ground truth plot
 %   Last modified: 2023-09-06
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-clc                         % clear command window
+%clc                         % clear command window
 clear all                   % clear workspace
 close all                   % close all open figures
 %% Load the CSV file
@@ -42,6 +42,30 @@ sensors = [1.79621 -0.115357;
 
 
 radius = 0.46; % Circle radius
+%% measure accuracy
+idxs = zeros(sum(odo_data.time <= 350), 1);
+
+last_idx = -1;
+
+for i = 1:length(odo_data.x)
+    if odo_data.time(i) > 350
+        last_idx = i - 1;
+        break
+    end
+    idxs(i) = find(truth_data.time == odo_data.time(i));
+end
+
+if last_idx == -1
+    last_idx = length(odo_data.x);
+end
+
+odo_pos = [odo_data.x(1:last_idx) odo_data.y(1:last_idx)];
+true_pos = [truth_data.x(idxs) truth_data.y(idxs)];
+
+error = vecnorm(odo_pos - true_pos, 2, 2);
+err = sum(error);
+fprintf("Error: %f, Max Distance: %f\n", err, max(error));
+
 %% Plot position using both encoder and accelerometer
 
 % Plot the odometry computed using the accelerometer
@@ -92,28 +116,6 @@ legend
 xlabel('time [s]'); ylabel('heading [°]');
 hold off
 
-%% measure accuracy
-idxs = zeros(sum(odo_data.time <= 350), 1);
-
-last_idx = -1;
-
-for i = 1:length(odo_data.x)
-    if odo_data.time(i) > 350
-        last_idx = i - 1;
-        break
-    end
-    idxs(i) = find(truth_data.time == odo_data.time(i));
-end
-
-if last_idx == -1
-    last_idx = length(odo_data.x);
-end
-
-odo_pos = [odo_data.x(1:last_idx) odo_data.y(1:last_idx)];
-true_pos = [truth_data.x(idxs) truth_data.y(idxs)];
-
-error = norm(odo_pos - true_pos);
-sprintf("Error: %f", error)
 %%
 
 a = input("Current uncertainty: ");

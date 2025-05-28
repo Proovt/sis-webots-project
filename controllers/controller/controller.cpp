@@ -14,15 +14,15 @@
 
 /*CONSTANTS*/
 #define TIME_INIT_ACC 5 // Time in seconds
-#define MIN_SIGNAL_STRENGTH 1.50
-#define MAX_SIGNAL_STRENGTH 2.02
+#define MIN_SIGNAL_STRENGTH 1.50 // Minimum considered signal strength
+#define MAX_SIGNAL_STRENGTH 2.04 // Maximum considered signal strength
 
 /*VERBOSE_FLAGS*/
 #define VERBOSE_ACC_MEAN false        // Prints accelerometer mean values
 #define VERBOSE_ACC false             // Prints accelerometer values
 #define VERBOSE_PS false              // Prints proximity sensor values
 #define VERBOSE_SIGNAL_STRENGTH false // Prints signal stregth and packet data
-#define VERBOSE_SIGNAL_RADIUS false   // Prints the sqrt
+#define VERBOSE_SIGNAL_RADIUS true   // Prints the sqrt
 
 /*VARIABLES*/
 static pose_t _odo_speed_acc, _odo_speed_enc;
@@ -152,17 +152,25 @@ int main(int argc, char **argv)
     odo_compute_encoders(_odo_speed_enc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
     odo_compute_acc(_odo_speed_acc, imu, imu_mean, delta_time);
 
-    double temp = _odo_speed_enc.heading;
-    _odo_speed_enc.heading = _odo_speed_acc.heading;
-    _odo_speed_acc.heading = temp;
+    heading_enc += _odo_speed_enc.heading * delta_time;
+    var_omega_enc += SIGMA_OMEGA_ENC * SIGMA_OMEGA_ENC * delta_time * delta_time;
 
+    Vec u(_odo_speed_enc.x, 0, _odo_speed_acc.heading);
+
+    prediction_step(mu, Sigma, u, delta_time);
+
+
+    // for logging difference
     prediction_step_acc(mu_acc, Sigma_acc, _odo_speed_acc, delta_time);
-    prediction_step_enc(mu, Sigma, _odo_speed_enc, delta_time);
-
+    prediction_step_enc(mu_enc, Sigma_enc, _odo_speed_enc, delta_time);
 
     // Fuse sensor values
     // update_step_sensors_mat(mu, mu_acc, Sigma, Sigma_acc);
-    update_step_sensors(mu, mu_acc(2), Sigma, Sigma_acc(2, 2));
+    update_step_sensors(mu, heading_enc, Sigma, var_omega_enc);
+
+    if(signal_strength >= MAX_SIGNAL_STRENGTH) {
+      std::cout << "help: " << signal_strength << std::endl;
+    }
 
     // signal strength below threshold to avoid negative sqrt
     if (signal_strength > MIN_SIGNAL_STRENGTH && signal_strength < MAX_SIGNAL_STRENGTH)
@@ -190,13 +198,10 @@ int main(int argc, char **argv)
 
       Vec2D estimated_pos = sensor_pos + diff * radius + bias;
 
-      double var = 0.05; // empirical
+      double var = 0.01; // empirical
 
-      // update_step_sensor_node(mu, estimated_pos, Sigma, var);
+      update_step_sensor_node(mu, estimated_pos, Sigma, var);
     }
-
-    // for logging difference
-    prediction_step_enc(mu_enc, Sigma_enc, _odo_speed_enc, delta_time);
 
     // Update values
     for (int i = 0; i < 2; i++)
