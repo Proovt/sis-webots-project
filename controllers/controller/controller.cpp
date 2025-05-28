@@ -18,7 +18,7 @@
 #define MAX_SIGNAL_STRENGTH 2.02
 
 /*VERBOSE_FLAGS*/
-#define VERBOSE_ACC_MEAN true         // Prints accelerometer mean values
+#define VERBOSE_ACC_MEAN false        // Prints accelerometer mean values
 #define VERBOSE_ACC false             // Prints accelerometer values
 #define VERBOSE_PS false              // Prints proximity sensor values
 #define VERBOSE_SIGNAL_STRENGTH false // Prints signal stregth and packet data
@@ -103,6 +103,14 @@ int main(int argc, char **argv)
     // Implementation //
     ////////////////////
 
+    // DEBUG
+    if (time > 150)
+    {
+      robot.set_motors_velocity(0, 0); // set the wheel velocities
+
+      break;
+    }
+
     // delta time computation
     double delta_time = compute_delta_time(last_robot_time, time);
 
@@ -144,17 +152,16 @@ int main(int argc, char **argv)
     odo_compute_encoders(_odo_speed_enc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
     odo_compute_acc(_odo_speed_acc, imu, imu_mean, delta_time);
 
-    // Kalman Filter
-    // mu_enc = mu;
-    // mu_acc = mu;
-
-    // Mat Sigma_enc = Sigma;
-    // Mat Sigma_acc = Sigma;
+    double temp = _odo_speed_enc.heading;
+    _odo_speed_enc.heading = _odo_speed_acc.heading;
+    _odo_speed_acc.heading = temp;
 
     prediction_step_acc(mu_acc, Sigma_acc, _odo_speed_acc, delta_time);
     prediction_step_enc(mu, Sigma, _odo_speed_enc, delta_time);
 
+
     // Fuse sensor values
+    // update_step_sensors_mat(mu, mu_acc, Sigma, Sigma_acc);
     update_step_sensors(mu, mu_acc(2), Sigma, Sigma_acc(2, 2));
 
     // signal strength below threshold to avoid negative sqrt
@@ -181,36 +188,12 @@ int main(int argc, char **argv)
       bias[0] *= cos(mu(2));
       bias[1] *= sin(mu(2));
 
-      /* MatX head_change;
-      head_change << cos(mu(2)), 0,
-          0, sin(mu(2)); */
-
-      // std::cout << head_change * bias << std::endl;
-
       Vec2D estimated_pos = sensor_pos + diff * radius + bias;
 
-      // printf("cur position: %f, %f; ", last_pos(0), last_pos(1));
-      // printf("est position: %f, %f\n", estimated_pos(0), estimated_pos(1));
+      double var = 0.05; // empirical
 
-      // std::cout << "\n" << estimated_pos << " vs. \n" << last_pos << "\n" << std::endl;
-
-      // double var = radius * radius; // 0.8 - 1.06 / signal_strength;
-      double var = 0.05 * 0.00001;
-      // Vec2D measurements(data[1], data[2]);
-      // printf("position before: %f, %f; ", mu(0), mu(1));
       // update_step_sensor_node(mu, estimated_pos, Sigma, var);
-      // printf("position after: %f, %f\n", mu(0), mu(1));
-      // set_position(mu_enc, data[1], data[2]);
-      // printf("Set robot position: [%f, %f]\n", mu_enc(0), mu_enc(1));
     }
-
-    /* bool in_corridor = true;
-
-    if (!in_corridor)
-    {
-      // test walls
-      // double front_left = se
-    } */
 
     // for logging difference
     prediction_step_enc(mu_enc, Sigma_enc, _odo_speed_enc, delta_time);
@@ -222,10 +205,9 @@ int main(int argc, char **argv)
     // NAVIGATION
     double lws = 0.0, rws = 0.0; // left and right wheel speeds
     double pose[4] = {mu(0), mu(1), mu(2), time};
-    // fsm(ps_values, lws, rws, pose);            // finite state machine
 
-    braitenberg(ps_values, lws, rws, pose);
-    robot.set_motors_velocity(lws, rws); // set the wheel velocities
+    bool final_stop = fsm(ps_values, lws, rws, pose); // finite state machine
+    robot.set_motors_velocity(lws, rws);              // set the wheel velocities
 
     //////////////////
     // Data logging //
@@ -257,6 +239,9 @@ int main(int argc, char **argv)
         print_array(data);
       }
     }
+
+    if (final_stop)
+      break;
   }
 
   // Enter here exit cleanup code.
@@ -267,6 +252,7 @@ int main(int argc, char **argv)
 
 void controller_init(Pioneer &robot)
 {
+  odo_init();
   odo_reset();
 }
 
@@ -287,9 +273,9 @@ void controller_compute_mean_acc(double imu[6], float time, double delta_time)
 
   count++;
 
-  if (count > 20) // Remove the effects of strong acceleration at the begining
+  // Remove the effects of strong acceleration at the begining
+  if (count > 20)
   {
-    printf("computing acc\n");
     for (int i = 0; i < 5; i++)
       imu_mean[i] += imu[i];
   }
@@ -303,8 +289,8 @@ void controller_compute_mean_acc(double imu[6], float time, double delta_time)
 
     if (VERBOSE_ACC_MEAN)
     {
-      printf("Accelerometer initialization Done! \n");
-      printf("ROBOT acc mean : %g %g %g\n", imu_mean[0], imu_mean[1], imu_mean[2]);
+      printf("Accelerometer initialization Done!\n");
+      printf("ROBOT accelerometer mean: %g %g %g, gyroscope mean: %g %g %g\n", imu[0], imu[1], imu[2], imu[3], imu[4], imu[5]);
     }
   }
 }

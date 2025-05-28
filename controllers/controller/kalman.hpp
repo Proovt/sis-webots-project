@@ -11,11 +11,11 @@
 #include <Eigen/Dense>
 
 /* CONSTANTS */
-#define DIM 3                           // State dimension
-#define SIGMA_ACC 0.05                  // [m/s^2]
-#define SIGMA_GYR 0.025                 // [rad/s]
-#define SIGMA_V_ENC 0.05                // [m/s] (empirical)
-#define SIGMA_OMEGA_ENC 0.9 * SIGMA_GYR // [rad/s] (empirical)
+#define DIM 3                          // State dimension
+#define SIGMA_ACC 0.05                 // [m/s^2]
+#define SIGMA_GYR 0.025                // [rad/s]
+#define SIGMA_V_ENC 0.05               // [m/s] (empirical)
+#define SIGMA_OMEGA_ENC .3 * SIGMA_GYR // [rad/s] (empirical)
 
 typedef Eigen::Matrix<double, DIM, DIM> Mat; // DIMxDIM matrix
 typedef Eigen::Matrix<double, -1, -1> MatX;  // Arbitrary size matrix
@@ -165,29 +165,25 @@ void update_step(Vec &mu, Vec2D &measurement, Mat &Sigma, MatX &Q, MatX &H)
     Sigma = (I - K * H) * Sigma;
 }
 
-/* void update_step_sensors(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_acc)
+void update_step_sensors_mat(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_acc)
 {
-    // Only consider gyroscope
-    Mat H;
+    // Only consider gyroscope (z value) and accelerometer (x and y values)
+    Mat H = Mat::Identity();
+
+    // Only consider gyroscope because of imprecise values
+    /* Mat H;
     H << 0, 0, 0,
         0, 0, 0,
-        0, 0, 1;
-    Mat K = Sigma_enc * H.transpose() * (H * Sigma_enc * H.transpose() + Sigma_acc).inverse();
+        0, 0, 1; */
 
+    Mat K = Sigma_enc * H.transpose() * (H * Sigma_enc * H.transpose() + Sigma_acc).inverse();
 
     if (kal_check_nan(K))
         return;
-    std::cout << K << std::endl;
 
-    // Print the matrix
-    // std::cout << "Matrix K is:\n" << K << std::endl;
-
-    mu = mu + K * (mu_acc - H * mu);
+    mu_enc = mu_enc + K * (mu_acc - H * mu_enc);
     Sigma_enc = (I - K * H) * Sigma_enc;
-
-    // mu_enc = mu_enc + K * (mu_acc - mu_enc);
-    // Sigma_enc = (I - K) * Sigma_enc;
-} */
+}
 
 void update_step_sensors(Vec &mu_enc, double heading_acc, Mat &Sigma_enc, double var_heading_acc)
 {
@@ -195,18 +191,11 @@ void update_step_sensors(Vec &mu_enc, double heading_acc, Mat &Sigma_enc, double
 
     if (isnan(K))
         return;
-    // std::cout << sigma_heading_acc << " vs " <<  Sigma_enc(2, 2) << " -> K: " << K << std::endl;
 
-    // Print the matrix
-    // std::cout << "Matrix K is:\n" << K << std::endl;
-
-    // std::cout << "Before: " << mu_enc(2) << " Acc: " << heading_acc << std::endl;
     mu_enc(2) += K * (heading_acc - mu_enc(2));
     Sigma_enc(2, 2) -= K * Sigma_enc(2, 2);
-    // std::cout << "After: " << mu_enc(2) << std::endl;
-
-    // mu_enc = mu_enc + K * (mu_acc - mu_enc);
-    // Sigma_enc = (I - K) * Sigma_enc;
+    // mu_enc(2) = heading_acc;
+    // Sigma_enc(2, 2) = var_heading_acc;
 }
 
 void update_step_sensor_node(Vec &mu, Vec2D &measurement, Mat &Sigma, double sensor_var)
@@ -221,21 +210,3 @@ void update_step_sensor_node(Vec &mu, Vec2D &measurement, Mat &Sigma, double sen
 
     update_step(mu, measurement, Sigma, Q, H);
 }
-
-void update_step_wall(Mat &Sigma, Vec &mu, Vec2D &measurement, double sensor_var)
-{
-    MatX H(2, DIM);
-    H << 1, 0, 0,
-        0, 1, 0;
-
-    MatX Q(2, 2);
-    Q << sensor_var, 0,
-        0, sensor_var;
-
-    update_step(mu, measurement, Sigma, Q, H);
-}
-
-/* void extended_kalman_filter_enc() {
-
-
-} */

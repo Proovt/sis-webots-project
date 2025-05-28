@@ -82,24 +82,20 @@ xlim([-1 7])
 f = figure('Name','Webots : Heading comparison [°]');
 hold on
 % Plot x : odometry vs ground truth (gps)
+plot(truth_data.time, truth_data.heading * 180 / pi, DisplayName="Ground Truth");
+plot(odo_data.time, odo_data.heading * 180 / pi, DisplayName="Kalman");
 plot(enc_data.time, enc_data.heading * 180 / pi, LineStyle="--", DisplayName="Odometry: Encoder");
 plot(acc_data.time, acc_data.heading * 180 / pi, LineStyle="--", DisplayName="Odometry: Accelerometer");
-plot(odo_data.time, odo_data.heading * 180 / pi, DisplayName="Kalman");
+
 title(" encoder vs accelerometer");
 legend
 xlabel('time [s]'); ylabel('heading [°]');
 hold off
 
-%% uncertainty
-hold on
-plot(sigma_data.heading, DisplayName="sigma")
-%plot(sigma_enc_data.heading, DisplayName="sigma enc")
-plot(sigma_acc_data.heading, DisplayName="sigma acc")
-legend
-hold off
-
 %% measure accuracy
 idxs = zeros(sum(odo_data.time <= 350), 1);
+
+last_idx = -1;
 
 for i = 1:length(odo_data.x)
     if odo_data.time(i) > 350
@@ -107,6 +103,10 @@ for i = 1:length(odo_data.x)
         break
     end
     idxs(i) = find(truth_data.time == odo_data.time(i));
+end
+
+if last_idx == -1
+    last_idx = length(odo_data.x);
 end
 
 odo_pos = [odo_data.x(1:last_idx) odo_data.y(1:last_idx)];
@@ -122,5 +122,14 @@ Uncertainty = [Uncertainty; a, error];
 %%
 Uncertainty = array2table(Uncertainty, "VariableNames", ["Uncertainty", "Error"]);
 writetable(Uncertainty, "uncertainty_vs_error.csv");
+%% uncertainty
+hold on
+plot(sigma_data.heading, DisplayName="sigma")
+%plot(sigma_enc_data.heading, DisplayName="sigma enc")
+plot(sigma_acc_data.heading, DisplayName="sigma acc")
+legend
+hold off
+
+
 %%
 Uncertainty = [];
