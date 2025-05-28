@@ -19,15 +19,57 @@ typedef struct
 	double heading;
 } pose_t;
 
+/* CONSTANTS */
+#define TIME_INIT_ACC 5 // [s] Time for imu static bias collection
+
+/* VERBOSE_FLAGS */
+#define VERBOSE_ACC_MEAN false // Prints imu mean values
+
+/* VARIABLES */
+static double imu_mean[6] = {0};
 static double axis_width; // [m] (empirical)
 
 static MovingAverage acc_x_avg(50), acc_y_avg(50), gyr_z_avg(18);
 
-void odo_init() {
+void odo_init()
+{
 	axis_width = pioneer_info.width + 0.092;
 }
 
-void odo_compute_acc(pose_t &odo_speed, const double imu[6], const double imu_mean[6], double delta_time)
+/**
+ * @brief      Compute the mean of the 3-axis accelerometer for about TIME_INIT_ACC seconds. The result is stored in array imu_mean
+ */
+bool controller_compute_mean_acc(double imu[6], float time, double delta_time)
+{
+	static int count = 0;
+
+	count++;
+
+	// Remove the effects of strong acceleration at the begining
+	if (count > 20)
+	{
+		for (int i = 0; i < 5; i++)
+			imu_mean[i] += imu[i];
+	}
+
+	if (count == (int)((double)(TIME_INIT_ACC) / delta_time))
+	{
+		for (int i = 0; i < 5; i++)
+			imu_mean[i] /= (double)(count - 20);
+
+		if (VERBOSE_ACC_MEAN)
+		{
+			printf("Accelerometer initialization Done!\n");
+			printf("ROBOT accelerometer mean: %g %g %g, gyroscope mean: %g %g %g\n", imu[0], imu[1], imu[2], imu[3], imu[4], imu[5]);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+void odo_compute_acc(pose_t &odo_speed, const double imu[6], double delta_time)
 {
 	// Remove static bias
 	double acc_normalized_x = imu[0] - imu_mean[0];

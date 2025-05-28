@@ -13,30 +13,25 @@
 #include "signal_analysis.hpp"
 #include "feature_detection.hpp"
 
-/*CONSTANTS*/
-#define TIME_INIT_ACC 5 // Time in seconds
+/* CONSTANTS */
 #define MIN_SIGNAL_STRENGTH 1.50 // Minimum considered signal strength
 #define MAX_SIGNAL_STRENGTH 2.04 // Maximum considered signal strength
 
-/*VERBOSE_FLAGS*/
-#define VERBOSE_ACC_MEAN false        // Prints accelerometer mean values
+/* VERBOSE_FLAGS */
 #define VERBOSE_ACC false             // Prints accelerometer values
 #define VERBOSE_PS false              // Prints proximity sensor values
 #define VERBOSE_SIGNAL_STRENGTH false // Prints signal stregth and packet data
 
-/*VARIABLES*/
+/* VARIABLES */
 static pose_t _odo_speed_acc, _odo_speed_enc;
-static double imu_mean[6] = {0, 0, 0, 0, 0, 0};
-static bool acc_mean_computed = false;
-static double odo_enc_prev[2] = {0, 0};
+static double odo_enc_prev[2] = {0};
+static bool imu_mean_computed = false;
 
 /* variables for computing delta time */
 static float last_robot_time = -INFINITY;
 
 void controller_init(Pioneer &robot);
-void set_position(Vec &mu, double x, double y);
 void odo_reset();
-void controller_compute_mean_acc(double imu[6], float time, double delta_time);
 double compute_delta_time(double last_time, double current_time);
 
 int main(int argc, char **argv)
@@ -124,10 +119,10 @@ int main(int argc, char **argv)
     }
 
     // Accelerometer and Gyroscope bias computation
-    if (!acc_mean_computed)
+    if (!imu_mean_computed)
     {
-      controller_compute_mean_acc(imu, time, delta_time);
-      // skip odometry as long as mean is computed
+      imu_mean_computed = controller_compute_mean_acc(imu, time, delta_time);
+      // skip odometry as long as mean is being computed
       continue;
     }
 
@@ -150,7 +145,7 @@ int main(int argc, char **argv)
 
     // Localization
     odo_compute_encoders(_odo_speed_enc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
-    odo_compute_acc(_odo_speed_acc, imu, imu_mean, delta_time);
+    odo_compute_acc(_odo_speed_acc, imu, delta_time);
 
     heading_enc += _odo_speed_enc.heading * delta_time;
     var_omega_enc += SIGMA_OMEGA_ENC * SIGMA_OMEGA_ENC * delta_time * delta_time;
@@ -158,7 +153,6 @@ int main(int argc, char **argv)
     Vec u(_odo_speed_enc.x, 0, _odo_speed_acc.heading);
 
     prediction_step(mu, Sigma, u, delta_time);
-
 
     // for logging difference
     prediction_step_acc(mu_acc, Sigma_acc, _odo_speed_acc, delta_time);
@@ -240,47 +234,10 @@ double compute_delta_time(double last_time, double current_time)
 }
 
 /**
- * @brief      Compute the mean of the 3-axis accelerometer for about TIME_INIT_ACC seconds. The result is stored in array imu_mean
- */
-void controller_compute_mean_acc(double imu[6], float time, double delta_time)
-{
-  static int count = 0;
-
-  count++;
-
-  // Remove the effects of strong acceleration at the begining
-  if (count > 20)
-  {
-    for (int i = 0; i < 5; i++)
-      imu_mean[i] += imu[i];
-  }
-
-  if (count == (int)((double)(TIME_INIT_ACC) / delta_time))
-  {
-    for (int i = 0; i < 5; i++)
-      imu_mean[i] /= (double)(count - 20);
-
-    acc_mean_computed = true;
-
-    if (VERBOSE_ACC_MEAN)
-    {
-      printf("Accelerometer initialization Done!\n");
-      printf("ROBOT accelerometer mean: %g %g %g, gyroscope mean: %g %g %g\n", imu[0], imu[1], imu[2], imu[3], imu[4], imu[5]);
-    }
-  }
-}
-
-/**
  * @brief      Reset the odometry to zeros
  */
 void odo_reset()
 {
   memset(&_odo_speed_enc, 0, sizeof(pose_t));
   memset(&_odo_speed_acc, 0, sizeof(pose_t));
-}
-
-void set_position(Vec &mu, double x, double y)
-{
-  mu(0) = x;
-  mu(1) = y;
 }
