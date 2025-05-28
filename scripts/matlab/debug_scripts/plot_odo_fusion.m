@@ -25,6 +25,16 @@ enc_filename = '../../../controllers/controller/data/odo_enc.csv';
 enc_data = readtable(enc_filename);
 enc_data.Properties.VariableNames = strtrim(enc_data.Properties.VariableNames);
 
+
+
+sigma_enc_filename = '../../../controllers/controller/data/odo_enc_sigma.csv';
+sigma_enc_data = readtable(sigma_enc_filename);
+sigma_acc_filename = '../../../controllers/controller/data/odo_acc_sigma.csv';
+sigma_acc_data = readtable(sigma_acc_filename);
+sigma_filename = '../../../controllers/controller/data/odo_sigma.csv';
+sigma_data = readtable(sigma_filename);
+
+
 sensors = [1.79621 -0.115357;
     4.62 1.21;
     1.30989 2.56938;
@@ -63,10 +73,31 @@ end
 title("x trajectory : odometry vs ground truth (gps)");
 legend();
 xlabel('x [m]'); ylabel('y [m]');
-ylim([-1 6])
+ylim([-1 7])
+xlim([-1 7])
 
-%y_lim = [min([data.odo_acc_x;  data.pose_x]),max([data.odo_acc_x;  data.pose_x])];
-%xlim([data.time(1), data.time(end)]);ylim(y_lim + [-0.05,0.05]*(y_lim(2)-y_lim(1)));
+%% Plot heading comparison
+
+% Plot the odometry computed using the accelerometer
+f = figure('Name','Webots : Heading comparison [°]');
+hold on
+% Plot x : odometry vs ground truth (gps)
+plot(enc_data.time, enc_data.heading * 180 / pi, LineStyle="--", DisplayName="Odometry: Encoder");
+plot(acc_data.time, acc_data.heading * 180 / pi, LineStyle="--", DisplayName="Odometry: Accelerometer");
+plot(odo_data.time, odo_data.heading * 180 / pi, DisplayName="Kalman");
+title(" encoder vs accelerometer");
+legend
+xlabel('time [s]'); ylabel('heading [°]');
+hold off
+
+%% uncertainty
+hold on
+plot(sigma_data.heading, DisplayName="sigma")
+%plot(sigma_enc_data.heading, DisplayName="sigma enc")
+plot(sigma_acc_data.heading, DisplayName="sigma acc")
+legend
+hold off
+
 %% measure accuracy
 idxs = zeros(sum(odo_data.time <= 350), 1);
 
@@ -93,47 +124,3 @@ Uncertainty = array2table(Uncertainty, "VariableNames", ["Uncertainty", "Error"]
 writetable(Uncertainty, "uncertainty_vs_error.csv");
 %%
 Uncertainty = [];
-%% Plot the odometry computed using the accelerometer on Webots
-
-% ROBOT acc mean : -0.00148328 -0.00236683 9.49705
-
-% Plot the odometry computed using the accelerometer
-f = figure('Name','Webots : Odometry using accelerometer [m/s^2]');
-
-% Plot x : odometry vs ground truth (gps)
-plot(truth_data.time, truth_data.x); hold on;
-plot(odo_data.time, odo_data.x);
-title("x trajectory : odometry vs ground truth (gps)");
-legend("Ground Thruth : GPS", "Odometry : Wheel encoder");
-xlabel('Time [s]'); ylabel('x [m]');
-
-%y_lim = [min([data.odo_acc_x;  data.pose_x]),max([data.odo_acc_x;  data.pose_x])];
-%xlim([data.time(1), data.time(end)]);ylim(y_lim + [-0.05,0.05]*(y_lim(2)-y_lim(1)));
-
-%% Plot acceleration of accelerometer in x
-
-% Plot the odometry computed using the accelerometer
-f = figure('Name','Webots : Odometry using accelerometer [m/s^2]');
-
-% Plot x : odometry vs ground truth (gps)
-plot(truth_data.time, truth_data.vel_heading); hold on;
-plot(odo_data.time, odo_data.speed_wx);
-title("x trajectory : odometry vs ground truth (gps)");
-legend("Ground Thruth : GPS", "Odometry : Accelerometer");
-xlabel('time [s]'); ylabel('speed [m/s]');
-
-%y_lim = [min([data.odo_acc_x;  data.pose_x]),max([data.odo_acc_x;  data.pose_x])];
-%xlim([data.time(1), data.time(end)]);ylim(y_lim + [-0.05,0.05]*(y_lim(2)-y_lim(1)));
-
-%% Plot the odometry heading computed using the accelerometer on Webots
-
-% ROBOT acc mean : -0.00148328 -0.00236683 9.49705
-
-% Plot the odometry computed using the accelerometer
-f = figure('Name','Webots : Odometry using wheel encoders [m/s^2]');
-hold on;
-plot(truth_data.time, truth_data.heading);
-plot(odo_data.time, odo_data.heading);
-legend("Ground Thruth : Heading", "Odometry : Heading");
-xlabel('Time [s]'); ylabel('[rad]');
-hold off;

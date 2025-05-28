@@ -13,16 +13,16 @@
 #include "signal_analysis.hpp"
 
 /*CONSTANTS*/
-#define TIME_INIT_ACC 5          // Time in seconds
+#define TIME_INIT_ACC 5 // Time in seconds
 #define MIN_SIGNAL_STRENGTH 1.50
-#define MAX_SIGNAL_STRENGTH 2.02 
+#define MAX_SIGNAL_STRENGTH 2.02
 
 /*VERBOSE_FLAGS*/
 #define VERBOSE_ACC_MEAN true         // Prints accelerometer mean values
 #define VERBOSE_ACC false             // Prints accelerometer values
 #define VERBOSE_PS false              // Prints proximity sensor values
 #define VERBOSE_SIGNAL_STRENGTH false // Prints signal stregth and packet data
-#define VERBOSE_SIGNAL_RADIUS false // Prints the sqrt
+#define VERBOSE_SIGNAL_RADIUS false   // Prints the sqrt
 
 /*VARIABLES*/
 static pose_t _odo_speed_acc, _odo_speed_enc;
@@ -55,13 +55,19 @@ int main(int argc, char **argv)
   std::string f_odo_acc = "odo_acc.csv";
   int f_odo_acc_cols = init_csv(f_odo_acc, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
 
+  std::string f_odo_sigma = "odo_sigma.csv";
+  int f_odo_sigma_cols = init_csv(f_odo_sigma, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
+
   std::string f_odo_enc_sigma = "odo_enc_sigma.csv";
   int f_odo_enc_sigma_cols = init_csv(f_odo_enc_sigma, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
 
-  std::string f_odo = "odo.csv";
-  int f_odo_cols = init_csv(f_odo, "time, x, y,"); // <-- don't forget the comma at the end of the string!!
+  std::string f_odo_acc_sigma = "odo_acc_sigma.csv";
+  int f_odo_acc_sigma_cols = init_csv(f_odo_acc_sigma, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
 
-  std::string f_sensor = "sensor_data.csv"; // Linus hat kaputt gemacht
+  std::string f_odo = "odo.csv";
+  int f_odo_cols = init_csv(f_odo, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
+
+  std::string f_sensor = "sensor_data.csv";                                                // Linus hat kaputt gemacht
   int f_sensor_cols = init_csv(f_sensor, "time, ID, signal_strength, x, y, T_in, T_out,"); // <-- don't forget the comma at the end of the string!!
 
   std::string f_sensor_node = "sensor_node.csv";
@@ -149,8 +155,7 @@ int main(int argc, char **argv)
     prediction_step_enc(mu, Sigma, _odo_speed_enc, delta_time);
 
     // Fuse sensor values
-
-    update_step_sensors(mu, mu_acc, Sigma, Sigma_acc);
+    update_step_sensors(mu, mu_acc(2), Sigma, Sigma_acc(2, 2));
 
     // signal strength below threshold to avoid negative sqrt
     if (signal_strength > MIN_SIGNAL_STRENGTH && signal_strength < MAX_SIGNAL_STRENGTH)
@@ -160,9 +165,9 @@ int main(int argc, char **argv)
       double d_sqr = C / signal_strength;
       double radius = sqrt(d_sqr - h * h);
 
-      if(VERBOSE_SIGNAL_RADIUS) {
+      if (VERBOSE_SIGNAL_RADIUS)
+      {
         printf("Radius: %f, Signal strength: %f\n", radius, signal_strength);
-
       }
       // printf("radius: %f, radius^2: %f ", radius, radius * radius);
 
@@ -190,10 +195,10 @@ int main(int argc, char **argv)
       // std::cout << "\n" << estimated_pos << " vs. \n" << last_pos << "\n" << std::endl;
 
       // double var = radius * radius; // 0.8 - 1.06 / signal_strength;
-      double var = 0.05;
+      double var = 0.05 * 0.00001;
       // Vec2D measurements(data[1], data[2]);
       // printf("position before: %f, %f; ", mu(0), mu(1));
-      update_step_sensor_node(mu, estimated_pos, Sigma, var);
+      // update_step_sensor_node(mu, estimated_pos, Sigma, var);
       // printf("position after: %f, %f\n", mu(0), mu(1));
       // set_position(mu_enc, data[1], data[2]);
       // printf("Set robot position: [%f, %f]\n", mu_enc(0), mu_enc(1));
@@ -216,9 +221,8 @@ int main(int argc, char **argv)
 
     // NAVIGATION
     double lws = 0.0, rws = 0.0; // left and right wheel speeds
-    // fsm(ps_values, lws, rws);            // finite state machine
-
     double pose[4] = {mu(0), mu(1), mu(2), time};
+    // fsm(ps_values, lws, rws, pose);            // finite state machine
 
     braitenberg(ps_values, lws, rws, pose);
     robot.set_motors_velocity(lws, rws); // set the wheel velocities
@@ -238,7 +242,9 @@ int main(int argc, char **argv)
     log_csv(f_odo_acc, f_odo_acc_cols, time, mu_acc(0), mu_acc(1), mu_acc(2));
 
     // Log uncertainty
-    // log_csv(f_odo_enc_sigma, f_odo_enc_sigma_cols, time, Sigma_enc(0, 0), Sigma_enc(1, 1), Sigma_enc(2, 2));
+    log_csv(f_odo_sigma, f_odo_sigma_cols, time, Sigma(0, 0), Sigma(1, 1), Sigma(2, 2));
+    log_csv(f_odo_enc_sigma, f_odo_enc_sigma_cols, time, Sigma_enc(0, 0), Sigma_enc(1, 1), Sigma_enc(2, 2));
+    log_csv(f_odo_acc_sigma, f_odo_acc_sigma_cols, time, Sigma_acc(0, 0), Sigma_acc(1, 1), Sigma_acc(2, 2));
 
     if (signal_strength > 0)
     {

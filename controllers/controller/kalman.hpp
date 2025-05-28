@@ -11,11 +11,11 @@
 #include <Eigen/Dense>
 
 /* CONSTANTS */
-#define DIM 3                          // State dimension
-#define SIGMA_ACC 0.05                 // [m/s^2]
-#define SIGMA_GYR 0.025                // [rad/s]
-#define SIGMA_V_ENC 0.05               // [m/s] (empirical)
-#define SIGMA_OMEGA_ENC 10 * SIGMA_GYR // [rad/s] (empirical)
+#define DIM 3                           // State dimension
+#define SIGMA_ACC 0.05                  // [m/s^2]
+#define SIGMA_GYR 0.025                 // [rad/s]
+#define SIGMA_V_ENC 0.05                // [m/s] (empirical)
+#define SIGMA_OMEGA_ENC 0.9 * SIGMA_GYR // [rad/s] (empirical)
 
 typedef Eigen::Matrix<double, DIM, DIM> Mat; // DIMxDIM matrix
 typedef Eigen::Matrix<double, -1, -1> MatX;  // Arbitrary size matrix
@@ -30,9 +30,9 @@ static const Mat I = MatX::Identity(DIM, DIM); // DIMxDIM identity matrix
 //////////////////////////////////
 
 // State vector mu (x,y,heading) to be updated by the Kalman filter functions
-static Vec mu = Vec::Zero();
+// static Vec mu = Vec::Zero();
 // State covariance sigma to be updated by the Kalman filter functions
-static Mat sigma = Mat::Zero();
+// static Mat sigma = Mat::Zero();
 
 static double sigma_acc_v = 0;
 
@@ -47,18 +47,18 @@ int kal_get_dim()
 /**
  * @brief      Copy the state vector into a 1D array
  */
-void kal_get_state(double *state)
+/* void kal_get_state(double *state)
 {
     for (int i = 0; i < DIM; i++)
     {
         state[i] = mu(i);
     }
-}
+} */
 
 /**
  * @brief      Copy the state covariance matrix into a 2D array
  */
-void kal_get_state_covariance(double **cov)
+/* void kal_get_state_covariance(double **cov)
 {
     for (int i = 0; i < sigma.rows(); i++)
     {
@@ -67,7 +67,7 @@ void kal_get_state_covariance(double **cov)
             cov[i][j] = sigma(i, j);
         }
     }
-}
+} */
 
 /**
  * @brief      Check if a matrix contains any NaN values
@@ -114,10 +114,10 @@ void prediction_step(Vec &mu, Mat &Sigma, pose_t &odo_speed, Mat &Sigma_u, doubl
     // Process matrix
     Mat F;
 
-    // cos(v_x) * heading * dt
-    F << 1, 0, cos(mu(2)) * u(0) * delta_time,
-        // sin(v_x) * heading * dt
-        0, 1, sin(mu(2)) * u(0) * delta_time,
+    // (- sin(heading) * v_x - cos(heading) * v_y) * dt
+    F << 1, 0, -(sin(mu(2)) * u(0) + cos(mu(2)) * u(1)) * delta_time,
+        // (cos(heading) * v_x - sin(heading) * v_y) * dt
+        0, 1, (cos(mu(2)) * u(0) - sin(mu(2)) * u(1)) * delta_time,
         0, 0, 1;
 
     Mat T;
@@ -157,29 +157,53 @@ void prediction_step_enc(Vec &mu, Mat &Sigma, pose_t &odo_speed_enc, double delt
 void update_step(Vec &mu, Vec2D &measurement, Mat &Sigma, MatX &Q, MatX &H)
 {
     MatX K = Sigma * H.transpose() * (H * Sigma * H.transpose() + Q).inverse();
+
+    if (kal_check_nan(K))
+        return;
+
     mu = mu + K * (measurement - H * mu);
     Sigma = (I - K * H) * Sigma;
 }
 
-void update_step_sensors(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_acc)
+/* void update_step_sensors(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_acc)
 {
     // Only consider gyroscope
     Mat H;
-    H << 1, 0, 0,
-        0, 1, 0,
+    H << 0, 0, 0,
+        0, 0, 0,
         0, 0, 1;
     Mat K = Sigma_enc * H.transpose() * (H * Sigma_enc * H.transpose() + Sigma_acc).inverse();
-    // Mat K = Sigma_enc * (Sigma_enc + Sigma_acc).inverse();
 
-    // std::cout << "K: " << std::endl;
+
     if (kal_check_nan(K))
         return;
+    std::cout << K << std::endl;
 
     // Print the matrix
     // std::cout << "Matrix K is:\n" << K << std::endl;
 
     mu = mu + K * (mu_acc - H * mu);
     Sigma_enc = (I - K * H) * Sigma_enc;
+
+    // mu_enc = mu_enc + K * (mu_acc - mu_enc);
+    // Sigma_enc = (I - K) * Sigma_enc;
+} */
+
+void update_step_sensors(Vec &mu_enc, double heading_acc, Mat &Sigma_enc, double var_heading_acc)
+{
+    double K = Sigma_enc(2, 2) / (Sigma_enc(2, 2) + var_heading_acc);
+
+    if (isnan(K))
+        return;
+    // std::cout << sigma_heading_acc << " vs " <<  Sigma_enc(2, 2) << " -> K: " << K << std::endl;
+
+    // Print the matrix
+    // std::cout << "Matrix K is:\n" << K << std::endl;
+
+    // std::cout << "Before: " << mu_enc(2) << " Acc: " << heading_acc << std::endl;
+    mu_enc(2) += K * (heading_acc - mu_enc(2));
+    Sigma_enc(2, 2) -= K * Sigma_enc(2, 2);
+    // std::cout << "After: " << mu_enc(2) << std::endl;
 
     // mu_enc = mu_enc + K * (mu_acc - mu_enc);
     // Sigma_enc = (I - K) * Sigma_enc;
