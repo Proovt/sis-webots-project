@@ -9,29 +9,23 @@
 
 #include "pioneer_interface/pioneer_interface.hpp"
 #include "moving_window.hpp"
+#include "kalman.hpp"
 
 #define RAD2DEG(X) X / M_PI * 180.0 // Convert radians to degrees
 
-typedef struct
-{
-	double x;
-	double y;
-	double heading;
-} pose_t;
-
 /* CONSTANTS */
-#define TIME_INIT_ACC 5 // [s] Time for imu static bias collection
+#define STRONG_ACCELERATION_DELAY 20 // [timestep] Timesteps to wait for strong acceleration
+#define TIME_INIT_ACC 5				 // [s] Time for imu static bias collection
+#define GYRO_Z_IDX 5				 // Index of gyroscope z measurement
 
 /* VERBOSE_FLAGS */
-#define VERBOSE_ACC_MEAN false // Prints imu mean values
+#define VERBOSE_GYRO_MEAN true // Prints imu mean values
 
 /* VARIABLES */
-static double imu_mean[6] = {0};
-static double axis_width; // [m] (empirical)
+static double gyro_z_bias = 0.0; // [rad/s]
+static double axis_width;		 // [m] (empirical)
 
-static MovingAverage acc_x_avg(50), acc_y_avg(50), gyr_z_avg(18);
-
-pose_t measurement;
+static MovingAverage gyr_z_avg(18);
 
 void odo_init()
 {
@@ -41,29 +35,30 @@ void odo_init()
 /**
  * @brief      Compute the mean of the 3-axis accelerometer for about TIME_INIT_ACC seconds. The result is stored in array imu_mean
  */
-bool controller_compute_mean_acc(double imu[6], float time, double delta_time)
+bool compute_gyro_bias(double imu[6], float time, double delta_time)
 {
 	static int count = 0;
 
 	count++;
 
 	// Remove the effects of strong acceleration at the begining
-	if (count > 20)
+	if (count > STRONG_ACCELERATION_DELAY)
 	{
-		for (int i = 0; i < 5; i++)
-			imu_mean[i] += imu[i];
+		gyro_z_bias += imu[GYRO_Z_IDX];
 	}
 
 	if (count == (int)((double)(TIME_INIT_ACC) / delta_time))
 	{
-		for (int i = 0; i < 5; i++)
-			imu_mean[i] /= (double)(count - 20);
+		gyro_z_bias /= (double)(count - STRONG_ACCELERATION_DELAY);
 
-		if (VERBOSE_ACC_MEAN)
+		if (VERBOSE_GYRO_MEAN)
 		{
-			printf("Accelerometer initialization Done!\n");
-			printf("ROBOT accelerometer mean: %g %g %g, gyroscope mean: %g %g %g\n", imu[0], imu[1], imu[2], imu[3], imu[4], imu[5]);
+			printf("Gyroscope bias computation: Done!\n");
+			printf("Gyroscope z mean: %g\n", gyro_z_bias);
 		}
+		// DEBUG
+		// gyro_z_bias = -0.00251853; -> 212.898302
+		// gyro_z_bias = 0; // -> 76.669018
 
 		return true;
 	}
@@ -71,21 +66,14 @@ bool controller_compute_mean_acc(double imu[6], float time, double delta_time)
 	return false;
 }
 
-void odo_compute_acc(pose_t &odo_speed, const double imu[6], double delta_time)
+double odo_compute_gyroscope(const double imu[6], double delta_time)
 {
 	// Remove static bias
-	double acc_normalized_x = imu[0] - imu_mean[0];
-	double acc_normalized_y = imu[1] - imu_mean[1];
-	double gyro_normalized_z = imu[5] - imu_mean[5];
-
-	acc_x_avg.slide(acc_normalized_x);
-	acc_y_avg.slide(acc_normalized_y);
+	double gyro_normalized_z = imu[GYRO_Z_IDX] - gyro_z_bias;
 
 	gyr_z_avg.slide(gyro_normalized_z);
 
-	odo_speed.x += acc_x_avg.compute_average() * delta_time;
-	odo_speed.y += acc_y_avg.compute_average() * delta_time;
-	odo_speed.heading = gyr_z_avg.compute_average();
+	return gyr_z_avg.compute_average();
 }
 
 /**
@@ -95,7 +83,7 @@ void odo_compute_acc(pose_t &odo_speed, const double imu[6], double delta_time)
  * @param[in]  Aleft_enc   The delta left encoder
  * @param[in]  Aright_enc  The delta right encoder
  */
-void odo_compute_encoders(pose_t &odo_speed, double Aleft_enc, double Aright_enc, double delta_time)
+void odo_compute_encoders(Vec2D &odo_speed, double Aleft_enc, double Aright_enc, double delta_time)
 {
 	// Rad to meter: Convert the wheel encoders units into meters
 	Aleft_enc *= pioneer_info.wheel_radius;
@@ -105,6 +93,5 @@ void odo_compute_encoders(pose_t &odo_speed, double Aleft_enc, double Aright_enc
 	double omega = (Aright_enc - Aleft_enc) / (axis_width * delta_time);
 	double speed = (Aright_enc + Aleft_enc) / (2.0 * delta_time);
 
-	odo_speed.x = speed;
-	odo_speed.heading = omega;
+	odo_speed << speed, omega;
 }

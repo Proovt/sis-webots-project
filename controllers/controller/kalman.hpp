@@ -13,7 +13,6 @@
 
 /* CONSTANTS */
 #define DIM 3                           // State dimension
-#define SIGMA_ACC 0.05                  // [m/s^2]
 #define SIGMA_GYR 0.025                 // [rad/s]
 #define SIGMA_V_ENC 0.05                // [m/s] (empirical)
 #define SIGMA_OMEGA_ENC 5.3 * SIGMA_GYR // [rad/s] (empirical)
@@ -37,9 +36,10 @@ static const Mat I = MatX::Identity(DIM, DIM); // DIMxDIM identity matrix
 // State covariance sigma to be updated by the Kalman filter functions
 // static Mat sigma = Mat::Zero();
 
-static double sigma_acc_v = 0;
-double var_omega_enc = 0;
-double heading_enc = 0;
+static Mat Sigma_u = Mat::Zero();
+
+static double var_omega_enc = 0;
+static double heading_enc = 0;
 
 /**
  * @brief      Get the state dimension
@@ -96,11 +96,11 @@ bool kal_check_nan(const MatX &m)
 ///////////////////////////////////////////////////
 // TODO: implement your Kalman filter here after //
 ///////////////////////////////////////////////////
-void calculate_sigma_u(Mat &Sigma, double sigma_acc_vx, double sigma_acc_vy, double sigma_gyr)
+void kalman_init()
 {
-    Sigma << sigma_acc_vx * sigma_acc_vx, 0, 0,
-        0, sigma_acc_vy * sigma_acc_vy, 0,
-        0, 0, sigma_gyr * sigma_gyr;
+    Sigma_u << SIGMA_V_ENC * SIGMA_V_ENC, 0, 0,
+        0, 0, 0,
+        0, 0, SIGMA_GYR * SIGMA_GYR;
 }
 
 void calculate_T(Mat &T, double heading)
@@ -111,11 +111,8 @@ void calculate_T(Mat &T, double heading)
 }
 
 /* Prediction step */
-void prediction_step(Vec &mu, Mat &Sigma, Mat &Sigma_u, const Vec &u, double delta_time)
+void prediction_step(Vec &mu, Mat &Sigma, const Mat &Sigma_u, const Vec &u, double delta_time)
 {
-    // Mat Sigma_u;
-    // calculate_sigma_u(Sigma_u, SIGMA_V_ENC, 0, SIGMA_GYR);
-
     // Process matrix
     Mat F;
 
@@ -138,56 +135,14 @@ void prediction_step(Vec &mu, Mat &Sigma, Mat &Sigma_u, const Vec &u, double del
     Sigma = F * Sigma * F.transpose() + R;
 }
 
-/* Prediction step */
-void prediction_step_global(Vec &mu, Mat &Sigma, pose_t &odo_speed, Mat &Sigma_u, double delta_time)
+void prediction_step_heading_encoder(double omega_enc, double delta_time)
 {
-    // local frame of reference: speed_x = speed, speed_y = 0, angular_speed = omega
-    Vec u(odo_speed.x, odo_speed.y, odo_speed.heading);
-
-    // Process matrix
-    Mat F;
-
-    // (- sin(heading) * v_x - cos(heading) * v_y) * dt
-    F << 1, 0, -(sin(mu(2)) * u(0) + cos(mu(2)) * u(1)) * delta_time,
-        // (cos(heading) * v_x - sin(heading) * v_y) * dt
-        0, 1, (cos(mu(2)) * u(0) - sin(mu(2)) * u(1)) * delta_time,
-        0, 0, 1;
-
-    Mat T;
-    // initialize T
-    calculate_T(T, mu(2));
-
-    Mat G = T * delta_time;
-
-    Mat R = G * Sigma_u * G.transpose();
-
-    mu = mu + G * u;
-
-    Sigma = F * Sigma * F.transpose() + R;
-}
-
-void prediction_step_acc(Vec &mu, Mat &Sigma, pose_t &odo_speed_acc, double delta_time)
-{
-    // initialize Sigma_u
-    Mat Sigma_u;
-    calculate_sigma_u(Sigma_u, sigma_acc_v, sigma_acc_v, SIGMA_GYR);
-
-    prediction_step_global(mu, Sigma, odo_speed_acc, Sigma_u, delta_time);
-
-    sigma_acc_v += SIGMA_ACC * delta_time;
-}
-
-void prediction_step_enc(Vec &mu, Mat &Sigma, pose_t &odo_speed_enc, double delta_time)
-{
-    // initialize Sigma_u
-    Mat Sigma_u;
-    calculate_sigma_u(Sigma_u, SIGMA_V_ENC, 0, SIGMA_OMEGA_ENC);
-
-    prediction_step_global(mu, Sigma, odo_speed_enc, Sigma_u, delta_time);
+    heading_enc += omega_enc * delta_time;
+    var_omega_enc += delta_time * SIGMA_OMEGA_ENC * SIGMA_OMEGA_ENC * delta_time;
 }
 
 /* Update step */
-void update_step(Vec &mu, Vec2D &measurement, Mat &Sigma, MatX &Q, MatX &H)
+void update_step(Vec &mu, const Vec2D &measurement, Mat &Sigma, const MatX &Q, const MatX &H)
 {
     MatX K = Sigma * H.transpose() * (H * Sigma * H.transpose() + Q).inverse();
 
@@ -198,37 +153,15 @@ void update_step(Vec &mu, Vec2D &measurement, Mat &Sigma, MatX &Q, MatX &H)
     Sigma = (I - K * H) * Sigma;
 }
 
-void update_step_sensors_mat(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_acc)
+void update_step_sensors(Vec &mu, Mat &Sigma)
 {
-    // Consider gyroscope (z value) and accelerometer (x and y values)
-    Mat H = Mat::Identity();
-
-    // Only consider gyroscope because of imprecise values
-    /* Mat H;
-    H << 0, 0, 0,
-        0, 0, 0,
-        0, 0, 1; */
-
-    Mat K = Sigma_enc * H.transpose() * (H * Sigma_enc * H.transpose() + Sigma_acc).inverse();
-
-    if (kal_check_nan(K))
-        return;
-
-    mu_enc = mu_enc + K * (mu_acc - H * mu_enc);
-    Sigma_enc = (I - K * H) * Sigma_enc;
-}
-
-void update_step_sensors(Vec &mu_enc, double heading_acc, Mat &Sigma_enc, double var_heading_acc)
-{
-    double K = Sigma_enc(2, 2) / (Sigma_enc(2, 2) + var_heading_acc);
+    double K = Sigma(2, 2) / (Sigma(2, 2) + var_omega_enc);
 
     if (isnan(K))
         return;
 
-    mu_enc(2) += K * (heading_acc - mu_enc(2));
-    Sigma_enc(2, 2) -= K * Sigma_enc(2, 2);
-    // mu_enc(2) = heading_acc;
-    // Sigma_enc(2, 2) = var_heading_acc;
+    mu(2) += K * (heading_enc - mu(2));
+    Sigma(2, 2) -= K * Sigma(2, 2);
 }
 
 void update_step_sensor_node(Vec &mu, Vec2D &measurement, Mat &Sigma, double sensor_var)

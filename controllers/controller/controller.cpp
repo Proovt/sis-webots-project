@@ -25,15 +25,21 @@
 using namespace std;
 
 /* VARIABLES */
-static pose_t _odo_speed_acc, _odo_speed_enc;
 static double odo_enc_prev[2] = {0};
 static bool imu_mean_computed = false;
 
-/* variable for computing delta time */
+// Odometry
+static Vec2D odo_speed = Vec2D::Zero();
+
+// Kalman
+static Mat Sigma = Mat::Zero();
+static Vec mu = Vec::Zero();
+static Vec u = Vec::Zero();
+
+/* Delta time */
 static float last_robot_time = -INFINITY;
 
 void controller_init(Pioneer &robot);
-void odo_reset();
 double compute_delta_time(double last_time, double current_time);
 
 int main(int argc, char **argv)
@@ -41,27 +47,15 @@ int main(int argc, char **argv)
   // Initialize the robot
   Pioneer robot = Pioneer(argc, argv);
 
-  // Initialize an example log file
-  std::string f_example = "example.csv";
-  int f_example_cols = init_csv(f_example, "time, light, accx, accy, accz,"); // <-- don't forget the comma at the end of the string!!
+  // Initialize controller and robot
+  controller_init(robot);
 
-  std::string f_odo_enc = "odo_enc.csv";
-  int f_odo_enc_cols = init_csv(f_odo_enc, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
-
-  std::string f_odo_acc = "odo_acc.csv";
-  int f_odo_acc_cols = init_csv(f_odo_acc, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
+  // Initialize log files
+  std::string f_odo = "odo.csv";
+  int f_odo_cols = init_csv(f_odo, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
 
   std::string f_odo_sigma = "odo_sigma.csv";
   int f_odo_sigma_cols = init_csv(f_odo_sigma, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
-
-  std::string f_odo_enc_sigma = "odo_enc_sigma.csv";
-  int f_odo_enc_sigma_cols = init_csv(f_odo_enc_sigma, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
-
-  std::string f_odo_acc_sigma = "odo_acc_sigma.csv";
-  int f_odo_acc_sigma_cols = init_csv(f_odo_acc_sigma, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
-
-  std::string f_odo = "odo.csv";
-  int f_odo_cols = init_csv(f_odo, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
 
   std::string f_sensor = "sensor_data.csv";                                                // Linus hat kaputt gemacht
   int f_sensor_cols = init_csv(f_sensor, "time, ID, signal_strength, x, y, T_in, T_out,"); // <-- don't forget the comma at the end of the string!!
@@ -69,28 +63,8 @@ int main(int argc, char **argv)
   std::string f_sensor_node = "sensor_node.csv";
   int f_sensor_node_cols = init_csv(f_sensor_node, "id, signal_stregth, distance_calc, real_distance, C,"); // <-- don't forget the comma at the end of the string!!
 
-  // init Kalman
-  Mat Sigma = Mat::Zero();
-  Mat Sigma_u = Mat::Zero();
-  Vec mu = Vec::Zero();
-  Vec u = Vec::Zero();
-
-  Mat Sigma_measurement = Mat::Zero();
-  Vec mu_measurement = Vec::Zero();
-
-  Mat Sigma_enc = Mat::Zero();
-  Vec mu_enc = Vec::Zero();
-  Mat Sigma_acc = Mat::Zero();
-  Vec mu_acc = Vec::Zero();
-
-  // Initialize controller and robot
-  controller_init(robot);
-
   while (robot.step() != -1)
   {
-    double truth_pose[4];
-    robot.get_ground_truth_pose(truth_pose);
-
     //////////////////////////////
     // Measurements acquisition //
     //////////////////////////////
@@ -113,7 +87,7 @@ int main(int argc, char **argv)
       break;
     }
 
-    // delta time computation
+    // Delta time computation
     double delta_time = compute_delta_time(last_robot_time, time);
 
     // Update previous time step
@@ -121,14 +95,14 @@ int main(int argc, char **argv)
 
     if (delta_time == INFINITY)
     {
-      // first timestep, skip calculations
+      // First timestep, skip calculations
       continue;
     }
 
-    // Accelerometer and Gyroscope bias computation
+    // Gyroscope bias computation
     if (!imu_mean_computed)
     {
-      imu_mean_computed = controller_compute_mean_acc(imu, time, delta_time);
+      imu_mean_computed = compute_gyro_bias(imu, time, delta_time);
       // skip odometry as long as mean is being computed
       continue;
     }
@@ -151,29 +125,18 @@ int main(int argc, char **argv)
     double signal_strength = serial_get_data(robot, data);
 
     // Localization
-    odo_compute_encoders(_odo_speed_enc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
-    odo_compute_acc(_odo_speed_acc, imu, delta_time);
-    
-    heading_enc += _odo_speed_enc.heading * delta_time;
-    var_omega_enc += SIGMA_OMEGA_ENC * SIGMA_OMEGA_ENC * delta_time * delta_time;
+    odo_compute_encoders(odo_speed, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
+    double gyro_z = odo_compute_gyroscope(imu, delta_time);
 
     // prediction
-    calculate_sigma_u(Sigma_u, SIGMA_V_ENC, 0, SIGMA_GYR);
-    u << _odo_speed_enc.x, 0, _odo_speed_acc.heading;
+    u << odo_speed(0), 0, gyro_z;
     prediction_step(mu, Sigma, Sigma_u, u, delta_time);
-    
-    // measurement
-    calculate_sigma_u(Sigma_u, sigma_acc_v, sigma_acc_v, SIGMA_OMEGA_ENC);
-    u << _odo_speed_acc.x, _odo_speed_acc.y, _odo_speed_enc.heading;
-    prediction_step(mu_measurement, Sigma_measurement, Sigma_u, u, delta_time);
 
-    // for logging difference
-    prediction_step_acc(mu_acc, Sigma_acc, _odo_speed_acc, delta_time);
-    prediction_step_enc(mu_enc, Sigma_enc, _odo_speed_enc, delta_time);
+    // Update measurement
+    prediction_step_heading_encoder(odo_speed(1), delta_time);
 
     // Fuse sensor values
-    // update_step_sensors(mu, mu_measurement(2), Sigma, Sigma_measurement(2, 2));
-    update_step_sensors_mat(mu, mu_measurement, Sigma, Sigma_measurement);
+    update_step_sensors(mu, Sigma);
 
     // signal strength below threshold to avoid negative sqrt
     if (signal_strength > MIN_SIGNAL_STRENGTH && signal_strength < MAX_SIGNAL_STRENGTH)
@@ -196,20 +159,11 @@ int main(int argc, char **argv)
     // Data logging //
     //////////////////
 
-    // Log the time and light and IMU data in a csv file
-    log_csv(f_example, f_example_cols, time, light, imu[0], imu[1], imu[2]);
-
     // Log pose
     log_csv(f_odo, f_odo_cols, time, mu(0), mu(1), mu(2));
 
-    // Log reference pose
-    log_csv(f_odo_enc, f_odo_enc_cols, time, mu_enc(0), mu_enc(1), mu_enc(2));
-    log_csv(f_odo_acc, f_odo_acc_cols, time, mu_acc(0), mu_acc(1), mu_acc(2));
-
     // Log uncertainty
     log_csv(f_odo_sigma, f_odo_sigma_cols, time, Sigma(0, 0), Sigma(1, 1), Sigma(2, 2));
-    log_csv(f_odo_enc_sigma, f_odo_enc_sigma_cols, time, Sigma_enc(0, 0), Sigma_enc(1, 1), Sigma_enc(2, 2));
-    log_csv(f_odo_acc_sigma, f_odo_acc_sigma_cols, time, Sigma_acc(0, 0), Sigma_acc(1, 1), Sigma_acc(2, 2));
 
     if (signal_strength > 0)
     {
@@ -238,7 +192,7 @@ void controller_init(Pioneer &robot)
   robot.init();
 
   odo_init();
-  odo_reset();
+  kalman_init();
 }
 
 /**
@@ -247,13 +201,4 @@ void controller_init(Pioneer &robot)
 double compute_delta_time(double last_time, double current_time)
 {
   return current_time - last_time;
-}
-
-/**
- * @brief      Reset the odometry to zeros
- */
-void odo_reset()
-{
-  memset(&_odo_speed_enc, 0, sizeof(pose_t));
-  memset(&_odo_speed_acc, 0, sizeof(pose_t));
 }
