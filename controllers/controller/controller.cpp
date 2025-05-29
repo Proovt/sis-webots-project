@@ -17,6 +17,8 @@
 #define MIN_SIGNAL_STRENGTH 1.50 // Minimum considered signal strength
 #define MAX_SIGNAL_STRENGTH 2.04 // Maximum considered signal strength
 
+#define DEBUG false
+
 /* VERBOSE_FLAGS */
 #define VERBOSE_IMU false             // Prints accelerometer values
 #define VERBOSE_PS false              // Prints proximity sensor values
@@ -80,7 +82,7 @@ int main(int argc, char **argv)
     ////////////////////
 
     // DEBUG
-    if (time > 150)
+    if (DEBUG && time > 150)
     {
       robot.set_motors_velocity(0, 0); // set the wheel velocities
 

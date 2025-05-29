@@ -7,10 +7,9 @@
 
 #define PROPORTIONALITY_FACTOR 1.08  // [-] (empirical)
 #define SENSOR_NODE_DST 0.723        // [m] Distance between light sensor and sensor node
-#define SENSOR_NODE_BIAS_FACTOR 0.01 // [m] Bias term factor (empirical)
 #define SENSOR_NODE_VARIANCE 0.01    // [m^2] (empirical)
 
-static Vec2D last_pos, sensor_pos, last_pos_direction, bias, estimated_pos;
+static Vec2D last_pos, sensor_pos, last_pos_direction, estimated_pos;
 
 void handle_sensor_node(double data[PACKET_SIZE], double signal_strength, Vec &mu, Mat &Sigma)
 {
@@ -29,11 +28,7 @@ void handle_sensor_node(double data[PACKET_SIZE], double signal_strength, Vec &m
     last_pos_direction = last_pos - sensor_pos;
     last_pos_direction.normalize();
 
-    // Calculate bias term in forward direction
-    bias << cos(mu(2)), sin(mu(2));
-    bias *= SENSOR_NODE_BIAS_FACTOR;
-
-    estimated_pos << sensor_pos + last_pos_direction * radius + bias;
+    estimated_pos << sensor_pos + last_pos_direction * radius;
 
     update_step_sensor_node(mu, estimated_pos, Sigma, SENSOR_NODE_VARIANCE);
 }

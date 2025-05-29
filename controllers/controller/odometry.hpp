@@ -19,13 +19,13 @@
 #define GYRO_Z_IDX 5				 // Index of gyroscope z measurement
 
 /* VERBOSE_FLAGS */
-#define VERBOSE_GYRO_MEAN true // Prints imu mean values
+#define VERBOSE_GYRO_MEAN false // Prints imu mean values
 
 /* VARIABLES */
 static double gyro_z_bias = 0.0; // [rad/s]
 static double axis_width;		 // [m] (empirical)
 
-static MovingAverage gyr_z_avg(18);
+static MovingAverage gyr_z_avg(20);
 
 void odo_init()
 {

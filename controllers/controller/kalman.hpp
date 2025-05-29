@@ -15,7 +15,7 @@
 #define DIM 3                           // State dimension
 #define SIGMA_GYR 0.025                 // [rad/s]
 #define SIGMA_V_ENC 0.05                // [m/s] (empirical)
-#define SIGMA_OMEGA_ENC 5.3 * SIGMA_GYR // [rad/s] (empirical)
+#define SIGMA_OMEGA_ENC 2.0 * SIGMA_GYR // [rad/s] (empirical)
 
 using namespace std;
 
