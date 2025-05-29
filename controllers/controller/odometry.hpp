@@ -31,6 +31,8 @@ static double axis_width; // [m] (empirical)
 
 static MovingAverage acc_x_avg(50), acc_y_avg(50), gyr_z_avg(18);
 
+pose_t measurement;
+
 void odo_init()
 {
 	axis_width = pioneer_info.width + 0.092;
@@ -75,7 +77,6 @@ void odo_compute_acc(pose_t &odo_speed, const double imu[6], double delta_time)
 	double acc_normalized_x = imu[0] - imu_mean[0];
 	double acc_normalized_y = imu[1] - imu_mean[1];
 	double gyro_normalized_z = imu[5] - imu_mean[5];
-	// double gyro_normalized_z = imu[5];
 
 	acc_x_avg.slide(acc_normalized_x);
 	acc_y_avg.slide(acc_normalized_y);
@@ -84,10 +85,6 @@ void odo_compute_acc(pose_t &odo_speed, const double imu[6], double delta_time)
 
 	odo_speed.x += acc_x_avg.compute_average() * delta_time;
 	odo_speed.y += acc_y_avg.compute_average() * delta_time;
-	// odo_speed.heading = gyro_normalized_z;
-
-	// std::cout << gyr_z_avg.get_window() << " new val: " << gyro_normalized_z << " <- avg: " << gyr_z_avg.compute_average() << " size: " << gyr_z_avg.get_values().size() << std::endl;
-
 	odo_speed.heading = gyr_z_avg.compute_average();
 }
 

@@ -18,16 +18,18 @@
 #define MAX_SIGNAL_STRENGTH 2.04 // Maximum considered signal strength
 
 /* VERBOSE_FLAGS */
-#define VERBOSE_ACC false             // Prints accelerometer values
+#define VERBOSE_IMU false             // Prints accelerometer values
 #define VERBOSE_PS false              // Prints proximity sensor values
 #define VERBOSE_SIGNAL_STRENGTH false // Prints signal stregth and packet data
+
+using namespace std;
 
 /* VARIABLES */
 static pose_t _odo_speed_acc, _odo_speed_enc;
 static double odo_enc_prev[2] = {0};
 static bool imu_mean_computed = false;
 
-/* variables for computing delta time */
+/* variable for computing delta time */
 static float last_robot_time = -INFINITY;
 
 void controller_init(Pioneer &robot);
@@ -38,7 +40,6 @@ int main(int argc, char **argv)
 {
   // Initialize the robot
   Pioneer robot = Pioneer(argc, argv);
-  robot.init();
 
   // Initialize an example log file
   std::string f_example = "example.csv";
@@ -70,14 +71,19 @@ int main(int argc, char **argv)
 
   // init Kalman
   Mat Sigma = Mat::Zero();
+  Mat Sigma_u = Mat::Zero();
   Vec mu = Vec::Zero();
+  Vec u = Vec::Zero();
+
+  Mat Sigma_measurement = Mat::Zero();
+  Vec mu_measurement = Vec::Zero();
 
   Mat Sigma_enc = Mat::Zero();
   Vec mu_enc = Vec::Zero();
   Mat Sigma_acc = Mat::Zero();
   Vec mu_acc = Vec::Zero();
 
-  // reset odometry
+  // Initialize controller and robot
   controller_init(robot);
 
   while (robot.step() != -1)
@@ -94,6 +100,7 @@ int main(int argc, char **argv)
     double *wheel_rot = robot.get_encoders();   // Wheel rotations (left, right)
     double light = robot.get_light_intensity(); // Light intensity
     double *imu = robot.get_imu();              // IMU with accelerations and rotation rates (acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z)
+
     ////////////////////
     // Implementation //
     ////////////////////
@@ -127,7 +134,7 @@ int main(int argc, char **argv)
     }
 
     // Sensor value logging
-    if (VERBOSE_ACC)
+    if (VERBOSE_IMU)
       printf("acceleration: %g %g %g, gyroscope: %g %g %g\n", imu[0], imu[1], imu[2], imu[3], imu[4], imu[5]);
 
     if (VERBOSE_PS)
@@ -146,20 +153,27 @@ int main(int argc, char **argv)
     // Localization
     odo_compute_encoders(_odo_speed_enc, wheel_rot[0] - odo_enc_prev[0], wheel_rot[1] - odo_enc_prev[1], delta_time);
     odo_compute_acc(_odo_speed_acc, imu, delta_time);
-
+    
     heading_enc += _odo_speed_enc.heading * delta_time;
     var_omega_enc += SIGMA_OMEGA_ENC * SIGMA_OMEGA_ENC * delta_time * delta_time;
 
-    Vec u(_odo_speed_enc.x, 0, _odo_speed_acc.heading);
-
-    prediction_step(mu, Sigma, u, delta_time);
+    // prediction
+    calculate_sigma_u(Sigma_u, SIGMA_V_ENC, 0, SIGMA_GYR);
+    u << _odo_speed_enc.x, 0, _odo_speed_acc.heading;
+    prediction_step(mu, Sigma, Sigma_u, u, delta_time);
+    
+    // measurement
+    calculate_sigma_u(Sigma_u, sigma_acc_v, sigma_acc_v, SIGMA_OMEGA_ENC);
+    u << _odo_speed_acc.x, _odo_speed_acc.y, _odo_speed_enc.heading;
+    prediction_step(mu_measurement, Sigma_measurement, Sigma_u, u, delta_time);
 
     // for logging difference
     prediction_step_acc(mu_acc, Sigma_acc, _odo_speed_acc, delta_time);
     prediction_step_enc(mu_enc, Sigma_enc, _odo_speed_enc, delta_time);
 
     // Fuse sensor values
-    update_step_sensors(mu, heading_enc, Sigma, var_omega_enc);
+    // update_step_sensors(mu, mu_measurement(2), Sigma, Sigma_measurement(2, 2));
+    update_step_sensors_mat(mu, mu_measurement, Sigma, Sigma_measurement);
 
     // signal strength below threshold to avoid negative sqrt
     if (signal_strength > MIN_SIGNAL_STRENGTH && signal_strength < MAX_SIGNAL_STRENGTH)
@@ -221,6 +235,8 @@ int main(int argc, char **argv)
 
 void controller_init(Pioneer &robot)
 {
+  robot.init();
+
   odo_init();
   odo_reset();
 }
