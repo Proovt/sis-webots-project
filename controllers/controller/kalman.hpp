@@ -18,7 +18,6 @@
 #define SIGMA_V_ENC 0.05                // [m/s] (empirical)
 #define SIGMA_OMEGA_ENC 5.3 * SIGMA_GYR // [rad/s] (empirical)
 
-
 using namespace std;
 
 typedef Eigen::Matrix<double, DIM, DIM> Mat; // DIMxDIM matrix
@@ -112,10 +111,10 @@ void calculate_T(Mat &T, double heading)
 }
 
 /* Prediction step */
-void prediction_step(Vec &mu, Mat &Sigma, const Vec &u, double delta_time)
+void prediction_step(Vec &mu, Mat &Sigma, Mat &Sigma_u, const Vec &u, double delta_time)
 {
-    Mat Sigma_u;
-    calculate_sigma_u(Sigma_u, SIGMA_V_ENC, 0, SIGMA_GYR);
+    // Mat Sigma_u;
+    // calculate_sigma_u(Sigma_u, SIGMA_V_ENC, 0, SIGMA_GYR);
 
     // Process matrix
     Mat F;
@@ -138,7 +137,6 @@ void prediction_step(Vec &mu, Mat &Sigma, const Vec &u, double delta_time)
 
     Sigma = F * Sigma * F.transpose() + R;
 }
-
 
 /* Prediction step */
 void prediction_step_global(Vec &mu, Mat &Sigma, pose_t &odo_speed, Mat &Sigma_u, double delta_time)
@@ -202,7 +200,7 @@ void update_step(Vec &mu, Vec2D &measurement, Mat &Sigma, MatX &Q, MatX &H)
 
 void update_step_sensors_mat(Vec &mu_enc, Vec &mu_acc, Mat &Sigma_enc, Mat &Sigma_acc)
 {
-    // Only consider gyroscope (z value) and accelerometer (x and y values)
+    // Consider gyroscope (z value) and accelerometer (x and y values)
     Mat H = Mat::Identity();
 
     // Only consider gyroscope because of imprecise values
