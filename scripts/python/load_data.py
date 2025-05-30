@@ -17,7 +17,7 @@ def load_file(filename: str) -> pd.DataFrame:
     '''
 
     # Load the data 
-    df = pd.read_csv(filename, sep=',')
+    df = pd.read_csv(filename, sep=',' ,error_bad_lines=False)
 
     # strip spaces from column names 
     df.rename(columns=lambda x: x.strip(), inplace=True)
@@ -80,3 +80,4 @@ if __name__ == '__main__':
     plot_pose_groundtruth(df)
 
     plt.show()
+
