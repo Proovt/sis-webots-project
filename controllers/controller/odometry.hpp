@@ -52,9 +52,10 @@ bool compute_gyro_bias(double imu[6], float time, double delta_time)
 	{
 		gyro_z_bias /= (double)(count - STRONG_ACCELERATION_DELAY);
 
+		printf("Gyroscope bias computation: Done!\n");
+
 		if (VERBOSE_GYRO_MEAN)
 		{
-			printf("Gyroscope bias computation: Done!\n");
 			printf("Gyroscope z mean: %g\n", gyro_z_bias);
 		}
 
