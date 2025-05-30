@@ -9,7 +9,7 @@
 #include <memory.h>
 
 #include "pioneer_interface/pioneer_interface.hpp"
-#include "moving_window.hpp"
+#include "moving_average.hpp"
 #include "kalman.hpp"
 
 #define RAD2DEG(X) X / M_PI * 180.0 // Convert radians to degrees
