@@ -8,6 +8,13 @@
 
 #define SIGNAL_LENGTH 1024 // length of the signal to be analyzed
 
+enum LightStatus
+{
+    NOMINAL = 1,
+    FLICKERING = 2,
+    DEFECTIVE = 3
+};
+
 /**
  * @brief KISS FFT USAGE EXAMPLE
  * @param signal_data pointer to the array containing the signal to be analyzed
@@ -49,7 +56,7 @@ void kiss_fft_demo(double *signal_data, std::string f_example, int f_example_col
     if (Defective) // If already known that light is defective, save it and no need to test if it is nominal or flickering
     {
         printf("Detected light n°%.0f, status: Defective, location: (%.1f, %.1f)\n", count, x, y);
-        log_csv(f_example, f_example_cols, x, y, 3.0);
+        log_csv(f_example, f_example_cols, x, y, (double)DEFECTIVE);
         Defective = false;
         return;
     }
@@ -60,17 +67,13 @@ void kiss_fft_demo(double *signal_data, std::string f_example, int f_example_col
             if (mag[i] > 10.0f) // if there is a frequency with a magnitude bigger than 10, then the light is flickering
             {
                 printf("Detected light n°%.0f, status: Flickering, location: (%.1f, %.1f)\n", count, x, y);
-                log_csv(f_example, f_example_cols, x, y, 2.0);
+                log_csv(f_example, f_example_cols, x, y, (double)FLICKERING);
                 return;
             }
-        }
-
-        for (int i = 1; i < SIGNAL_LENGTH; ++i)
-        {
-            if (mag[i] <= 10.0f) // if no the FFT doesn't have any peaks over 10 and the light isn't defective, then the light is nominal
+            else // if not, the FFT doesn't have any peaks over 10 and the light isn't defective, then the light is nominal
             {
                 printf("Detected light n°%.0f, status: Good, location: (%.1f, %.1f)\n", count, x, y);
-                log_csv(f_example, f_example_cols, x, y, 1.0);
+                log_csv(f_example, f_example_cols, x, y, (double)NOMINAL);
                 return;
             }
         }
