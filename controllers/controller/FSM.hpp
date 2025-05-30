@@ -79,7 +79,6 @@ void stopBehavior(double &vel_left, double &vel_right)
 {
   vel_left = 0;
   vel_right = 0;
-  // std::cout << "Stopped at the end of last corridor!" << std::endl;
 }
 
 void turningBehavior(
@@ -226,7 +225,7 @@ bool fsm(double *ps, double &vel_left, double &vel_right, double pose[3], bool s
       if (stop_counter > stop_confirm_duration)
       {
         state = STOP;
-        printf("Stopped at the end of last corridor!\n");
+        printf("Stopped at the end of the last corridor!\n");
         return true;
       }
     }
