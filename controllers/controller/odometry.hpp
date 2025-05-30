@@ -56,9 +56,6 @@ bool compute_gyro_bias(double imu[6], float time, double delta_time)
 			printf("Gyroscope bias computation: Done!\n");
 			printf("Gyroscope z mean: %g\n", gyro_z_bias);
 		}
-		// DEBUG
-		// gyro_z_bias = -0.00251853; -> 212.898302
-		// gyro_z_bias = 0; // -> 76.669018
 
 		return true;
 	}

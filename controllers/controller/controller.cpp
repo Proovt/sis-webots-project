@@ -17,27 +17,23 @@
 #define MIN_SIGNAL_STRENGTH 1.50 // Minimum considered signal strength
 #define MAX_SIGNAL_STRENGTH 2.04 // Maximum considered signal strength
 
-#define DEBUG false
-
 /* VERBOSE_FLAGS */
 #define VERBOSE_IMU false             // Prints accelerometer values
 #define VERBOSE_PS false              // Prints proximity sensor values
 #define VERBOSE_SIGNAL_STRENGTH false // Prints signal stregth and packet data
-
-using namespace std;
 
 /* VARIABLES */
 static double odo_enc_prev[2] = {0};
 static bool imu_mean_computed = false;
 
 // Odometry
-static Vec2D odo_speed = Vec2D::Zero();
+static Vec2D odo_speed = Vec2D::Zero(); // prediction vector with (x speed, angular speed)
 
 // Kalman
-static Mat Sigma = Mat::Zero();
-static Vec mu = Vec::Zero();
-static Vec u = Vec::Zero();
-static double pose[3] = {0};
+static Mat Sigma = Mat::Zero(); // state covariance matrix
+static Vec mu = Vec::Zero();    // state vector
+static Vec u = Vec::Zero();     // input vector
+static double pose[3] = {0};    // pose array (x, y, heading)
 
 /* Delta time */
 static float last_robot_time = -INFINITY;
@@ -81,14 +77,6 @@ int main(int argc, char **argv)
     ////////////////////
     // Implementation //
     ////////////////////
-
-    // DEBUG
-    if (DEBUG && time > 150)
-    {
-      robot.set_motors_velocity(0, 0); // set the wheel velocities
-
-      break;
-    }
 
     // delta time computation
     double delta_time = compute_delta_time(last_robot_time, time);
