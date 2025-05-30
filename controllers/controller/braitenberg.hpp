@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string>
 
+#define VERBOSE_STATE_NAME false
+
 /*
 
 Pioneer sensor layout:
@@ -32,8 +34,6 @@ Response: >5m -> 0, 0m -> 1024
 
 void braitenberg(double *ps, double &vel_left, double &vel_right)
 {
-
-    // TODO: implement your Braitenberg algorithm here
 
     double braitenberg_coefficients[16][2] = {
         {0.1, -0.0}, // 0: slight steer

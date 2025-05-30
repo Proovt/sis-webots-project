@@ -12,6 +12,7 @@
 #include "serial.hpp"
 #include "signal_analysis.hpp"
 #include "feature_detection.hpp"
+#include "detect_light.hpp"
 
 /* CONSTANTS */
 #define MIN_SIGNAL_STRENGTH 1.50 // Minimum considered signal strength
@@ -56,11 +57,15 @@ int main(int argc, char **argv)
   std::string f_odo_sigma = "odo_sigma.csv";
   int f_odo_sigma_cols = init_csv(f_odo_sigma, "time, x, y, heading,"); // <-- don't forget the comma at the end of the string!!
 
-  std::string f_sensor = "sensor_data.csv";                                                // Linus hat kaputt gemacht
-  int f_sensor_cols = init_csv(f_sensor, "time, ID, signal_strength, x, y, T_in, T_out,"); // <-- don't forget the comma at the end of the string!!
+  std::string f_sensor = "sensor_data.csv";
+  int f_sensor_cols = init_csv(f_sensor, "time, ID, T_in, T_out,"); // <-- don't forget the comma at the end of the string!!
 
-  std::string f_sensor_node = "sensor_node.csv";
-  int f_sensor_node_cols = init_csv(f_sensor_node, "id, signal_stregth, distance_calc, real_distance, C,"); // <-- don't forget the comma at the end of the string!!
+  std::string f_example = "Lights_detected.csv";
+  int f_example_cols = init_csv(f_example, "x, y, status,"); // <-- don't forget the comma at the end of the string!!
+
+  // Initialize an example log file
+  std::string f_amp_t = "ampVSt.csv";
+  int f_amp_t_cols = init_csv(f_amp_t, "time, amplitude, frequency, magnitude,"); // <-- don't forget the comma at the end of the string!!
 
   while (robot.step() != -1)
   {
@@ -139,13 +144,16 @@ int main(int argc, char **argv)
     for (int i = 0; i < 2; i++)
       odo_enc_prev[i] = wheel_rot[i];
 
+    kal_get_state(mu, pose); // load pose from state vector
+
+    // LIGHT DETECTION
+    bool stop_for_light = detectLight(robot, light, f_example, f_example_cols, f_amp_t, f_amp_t_cols, pose);
+
     // NAVIGATION
     double lws = 0.0, rws = 0.0; // left and right wheel speeds
 
-    kal_get_state(mu, pose); // load pose from state vector
-
-    bool final_stop = fsm(ps_values, lws, rws, pose); // finite state machine
-    robot.set_motors_velocity(lws, rws);              // set the wheel velocities
+    bool final_stop = fsm(ps_values, lws, rws, pose, stop_for_light); // finite state machine
+    robot.set_motors_velocity(lws, rws);                              // set the wheel velocities
 
     //////////////////
     // Data logging //

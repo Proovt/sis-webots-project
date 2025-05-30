@@ -17,13 +17,14 @@ enum RobotState
   TURNING,
   EMERGENCY_BACKUP,
   STRAIGHT,
-  STOP
+  STOP,
+  LIGHTSTOP
 };
 
 static RobotState state = NAVIGATE;
 static RobotState prev_state = NAVIGATE;
 
-const std::string getStateName(RobotState s)
+const char *getStateName(RobotState s)
 {
   switch (s)
   {
@@ -51,7 +52,7 @@ double clamp(double val, double min_val, double max_val)
   return std::max(min_val, std::min(val, max_val));
 }
 
-void navigateBehavior(double *ps, double &vel_left, double &vel_right, double pose[4])
+void navigateBehavior(double *ps, double &vel_left, double &vel_right, double pose[3])
 {
   braitenberg(ps, vel_left, vel_right);
 }
@@ -67,18 +68,24 @@ void straightBehavior(double &vel_left, double &vel_right)
   vel_left = 0.5;
   vel_right = 0.5;
 }
+void LightStop(double &vel_left, double &vel_right)
+{
+  vel_left = 0;
+  vel_right = 0;
+}
 
 void stopBehavior(double &vel_left, double &vel_right)
 {
   vel_left = 0;
   vel_right = 0;
+  // std::cout << "Stopped at the end of last corridor!" << std::endl;
 }
 
 void turningBehavior(
     double *ps,
     double &vel_left,
     double &vel_right,
-    double pose[4],
+    double pose[3],
     bool turn_left,
     bool turn_right,
     bool pot_found,
@@ -86,9 +93,10 @@ void turningBehavior(
     int &search_pot_counter,
     const int search_pot_duration)
 {
-  double h = pose[2];
+
   if (turn_left)
   {
+
     double target = 1000;
     double sensor_left = std::max(ps[0], ps[15]);
     double error = sensor_left - target;
@@ -170,7 +178,7 @@ void turningBehavior(
  * @param[out] vel_lef left wheels velocity
  * @param[out] vel_right right wheels velocity
  */
-bool fsm(double *ps, double &vel_left, double &vel_right, double pose[4])
+bool fsm(double *ps, double &vel_left, double &vel_right, double pose[3], bool stop_for_light)
 {
   static int backup_counter = 0;
   static bool is_emergency = false;
@@ -179,6 +187,8 @@ bool fsm(double *ps, double &vel_left, double &vel_right, double pose[4])
   static bool is_straight = false;
   static bool is_end_of_corridor = false;
   static bool pot_found = false;
+  static bool prev_state_stop;
+
   static int search_pot_counter = 0;
   static bool search_pot = false;
   static int stop_counter = 0;
@@ -195,139 +205,155 @@ bool fsm(double *ps, double &vel_left, double &vel_right, double pose[4])
   turn_right = x < 0.0;
   bool at_final_stop = (y > 3.5 && y < 4.5 && x < 0);
 
-  if (at_final_stop)
+  if (stop_for_light)
   {
-    stop_counter++;
-    if (stop_counter > stop_confirm_duration)
-    {
-      state = STOP;
-      std::cout << "Stopped at the end of last corridor!" << std::endl;
-      return true;
-    }
+    state = STOP;
+    prev_state_stop = true;
   }
   else
   {
-    stop_counter = 0;
-  }
+    if (prev_state_stop)
+    {
+      state = NAVIGATE;
+      prev_state_stop = false;
+    }
 
-  // EMERGENCY BACKUP
-  if (is_emergency)
-  {
-    state = EMERGENCY_BACKUP;
-    backup_counter++;
-    bool rear_blocked = false;
-    for (int i = 9; i <= 11; ++i)
+    if (at_final_stop)
     {
-      if (ps[i] > 1010)
-      {
-        rear_blocked = true;
-        break;
-      }
-    }
-    if (rear_blocked || backup_counter > backup_duration)
-    {
-      state = prev_state;
-      backup_counter = 0;
-      is_emergency = false;
-    }
-  }
-  else
-  {
-    for (int i = 1; i <= 6; ++i)
-    {
-      if (ps[i] > 1005)
-      {
-        prev_state = state;
-        state = EMERGENCY_BACKUP;
-        is_emergency = true;
-        break;
-      }
-    }
-  }
 
-  // STRAIGHT CORRIDOR
-  if (is_straight)
-  {
-    state = STRAIGHT;
-    backup_counter++;
-    if (backup_counter > backup_duration)
-    {
-      state = prev_state;
-      backup_counter = 0;
-      is_straight = false;
-    }
-  }
-  else if (ps[15] > 1010 || ps[8] > 1010)
-  {
-    prev_state = state;
-    state = STRAIGHT;
-    is_straight = true;
-  }
-
-  // TURN DETECTION (LEFT)
-  if (turn_left)
-  {
-    if (is_end_of_corridor)
-    {
-      pot_found = pot_found || ps[0] > 800 || ps[15] > 800;
-      if (h > 2.8)
+      stop_counter++;
+      if (stop_counter > stop_confirm_duration)
       {
-        is_end_of_corridor = false;
-        state = NAVIGATE;
-        pot_found = false;
+        state = STOP;
+        printf("Stopped at the end of last corridor!\n");
+        return true;
       }
     }
     else
     {
-      bool out_cor = true;
-      for (int i = 0; i <= 7; ++i)
+      stop_counter = 0;
+    }
+
+    // EMERGENCY BACKUP
+    if (is_emergency)
+    {
+      state = EMERGENCY_BACKUP;
+      backup_counter++;
+      bool rear_blocked = false;
+      for (int i = 9; i <= 11; ++i)
       {
-        if (ps[i] > 850)
+        if (ps[i] > 1010)
         {
-          out_cor = false;
+          rear_blocked = true;
           break;
         }
       }
-      if (out_cor && !at_final_stop)
+      if (rear_blocked || backup_counter > backup_duration)
       {
-        state = TURNING;
-        is_end_of_corridor = true;
-      }
-    }
-  }
-
-  // TURN DETECTION (RIGHT)
-  if (turn_right)
-  {
-    if (is_end_of_corridor)
-    {
-      pot_found = pot_found || ps[0] > 800 || ps[15] > 800;
-      if (h < 0.3)
-      {
-        is_end_of_corridor = false;
-        state = NAVIGATE;
-        pot_found = false;
+        state = prev_state;
+        backup_counter = 0;
+        is_emergency = false;
       }
     }
     else
     {
-      bool out_cor = true;
-      for (int i = 0; i <= 7; ++i)
+      for (int i = 1; i <= 6; ++i)
       {
-        if (ps[i] > 850)
+        if (ps[i] > 1005)
         {
-          out_cor = false;
+          prev_state = state;
+          state = EMERGENCY_BACKUP;
+          is_emergency = true;
           break;
         }
       }
-      if (out_cor && !at_final_stop)
+    }
+
+    // STRAIGHT CORRIDOR
+    if (is_straight)
+    {
+      state = STRAIGHT;
+      backup_counter++;
+      if (backup_counter > backup_duration)
       {
-        state = TURNING;
-        is_end_of_corridor = true;
+        state = prev_state;
+        backup_counter = 0;
+        is_straight = false;
+      }
+    }
+    else if (ps[15] > 1010 || ps[8] > 1010)
+    {
+
+      prev_state = state;
+      state = STRAIGHT;
+      is_straight = true;
+    }
+
+    // TURN DETECTION (LEFT)
+    if (turn_left)
+    {
+      if (is_end_of_corridor)
+      {
+        pot_found = pot_found || ps[0] > 800 || ps[15] > 800;
+        if (h > 2.8)
+        {
+          is_end_of_corridor = false;
+          state = NAVIGATE;
+          pot_found = false;
+        }
+      }
+      else
+      {
+        bool out_cor = true;
+        for (int i = 0; i <= 7; ++i)
+        {
+          if (ps[i] > 850)
+          {
+
+            out_cor = false;
+            break;
+          }
+        }
+        if (out_cor && !at_final_stop)
+        {
+          state = TURNING;
+          is_end_of_corridor = true;
+        }
+      }
+    }
+
+    // TURN DETECTION (RIGHT)
+    if (turn_right)
+    {
+      if (is_end_of_corridor)
+      {
+        pot_found = pot_found || ps[0] > 800 || ps[15] > 800;
+        if (h < 0.3)
+        {
+          is_end_of_corridor = false;
+          state = NAVIGATE;
+          pot_found = false;
+        }
+      }
+      else
+      {
+        bool out_cor = true;
+        for (int i = 0; i <= 7; ++i)
+        {
+          if (ps[i] > 850)
+          {
+            out_cor = false;
+            break;
+          }
+        }
+        if (out_cor && !at_final_stop)
+        {
+          state = TURNING;
+          is_end_of_corridor = true;
+        }
       }
     }
   }
-
   // EXECUTE STATE
   switch (state)
   {
@@ -343,10 +369,14 @@ bool fsm(double *ps, double &vel_left, double &vel_right, double pose[4])
   case STRAIGHT:
     straightBehavior(vel_left, vel_right);
     break;
+  case LIGHTSTOP:
+    LightStop(vel_left, vel_right);
+    break;
   case STOP:
     stopBehavior(vel_left, vel_right);
     break;
   default:
+    std::cout << "Unknown FSM state!" << std::endl;
     vel_left = vel_right = 0.0;
     break;
   }
