@@ -70,12 +70,10 @@ void kiss_fft_demo(double *signal_data, std::string f_example, int f_example_col
                 log_csv(f_example, f_example_cols, x, y, (double)FLICKERING);
                 return;
             }
-            else // if not, the FFT doesn't have any peaks over 10 and the light isn't defective, then the light is nominal
-            {
-                printf("Detected light n°%.0f, status: Good, location: (%.1f, %.1f)\n", count, x, y);
-                log_csv(f_example, f_example_cols, x, y, (double)NOMINAL);
-                return;
-            }
         }
+
+        // the FFT doesn't have any peaks over 10 and the light isn't defective, therefore the light is nominal
+        printf("Detected light n°%.0f, status: Good, location: (%.1f, %.1f)\n", count, x, y);
+        log_csv(f_example, f_example_cols, x, y, (double)NOMINAL);
     }
 }
