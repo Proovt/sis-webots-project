@@ -1,3 +1,4 @@
+# Implemented by: Linus
 import load_data as ld
 import numpy as np
 import matplotlib.pyplot as plt

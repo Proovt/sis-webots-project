@@ -1,3 +1,4 @@
+# Implemented by: Miguel
 import matplotlib.pyplot as plt
 import load_data as ld
 

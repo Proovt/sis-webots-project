@@ -17,7 +17,7 @@ def load_file(filename: str) -> pd.DataFrame:
     '''
 
     # Load the data 
-    df = pd.read_csv(filename, sep=',' ,error_bad_lines=False)
+    df = pd.read_csv(filename, sep=',' , on_bad_lines='skip')
 
     # strip spaces from column names 
     df.rename(columns=lambda x: x.strip(), inplace=True)

@@ -1,20 +1,17 @@
-import pandas as pd
+# Implemented by: Miguel
 import matplotlib.pyplot as plt
 import load_data as ld
 
 # Load data
 filename = "controllers/supervisor/data/ground_truth.csv"
-data = ld.load_file(filename)
+data_gt = ld.load_file(filename)
 
 lights_file = "controllers/controller/data/Lights_detected.csv"
-lights = pd.read_csv(lights_file)
-
-# Clean column headers
-lights.columns = lights.columns.str.strip()
+lights = ld.load_file(lights_file)
 
 # Plot
 plt.figure(figsize=(10, 6))
-plt.plot(data["x"], data["y"], label="Trajectory", color="blue")
+plt.plot(data_gt["x"], data_gt["y"], label="Trajectory", color="blue")
 
 # Plot lights by status
 plt.scatter(lights[lights["status"] == 3]["x"], lights[lights["status"] == 3]["y"],

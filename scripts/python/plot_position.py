@@ -1,25 +1,19 @@
-import sys
+# Implemented by: Nico
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import load_data as ld
 
-from pathlib import Path
-
-cur_dir = Path(sys.path[0])
 
 # Define file paths
-truth_path = cur_dir.joinpath("..", "..", "controllers", "supervisor", "data", "ground_truth.csv")
-odo_path = cur_dir.joinpath("..", "..", "controllers", "controller", "data", "odo.csv")
-sigma_path = cur_dir.joinpath('..', '..', 'controllers', "controller", "data", "odo_sigma.csv")
+truth_path = "controllers/supervisor/data/ground_truth.csv"
+odo_path = "controllers/controller/data/odo.csv"
+sigma_path = "controllers/controller/data/odo_sigma.csv"
 
 # Load data
-ground_truth = pd.read_csv(truth_path)
-odometry = pd.read_csv(odo_path)
-uncertainty = pd.read_csv(sigma_path)
-
-ground_truth.columns = ground_truth.columns.str.strip()
-odometry.columns = odometry.columns.str.strip()
-uncertainty.columns = uncertainty.columns.str.strip()
+ground_truth = ld.load_file(truth_path)
+odometry = ld.load_file(odo_path)
+uncertainty = ld.load_file(sigma_path)
 
 # Extract pose
 gt_x = ground_truth['x'].to_numpy()

@@ -1,3 +1,4 @@
+# Implemented by: Linus
 import pandas as pd
 import matplotlib.pyplot as plt
 import load_data as ld

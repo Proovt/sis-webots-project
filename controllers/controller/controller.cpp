@@ -1,4 +1,4 @@
-// Controller for the robot robot
+// Implemented by: Linus, Miguel, Nico
 
 // Provided libraries
 #include "pioneer_interface/pioneer_interface.hpp"
@@ -63,9 +63,8 @@ int main(int argc, char **argv)
   std::string f_example = "Lights_detected.csv";
   int f_example_cols = init_csv(f_example, "x, y, status,"); // <-- don't forget the comma at the end of the string!!
 
-  // Initialize an example log file
-  std::string f_amp_t = "ampVSt.csv";
-  int f_amp_t_cols = init_csv(f_amp_t, "time, amplitude, frequency, magnitude,"); // <-- don't forget the comma at the end of the string!!
+  std::string f_amp_t = "light_data.csv";
+  int f_amp_t_cols = init_csv(f_amp_t, "ID, amplitude, frequency, magnitude,"); // <-- don't forget the comma at the end of the string!!
 
   while (robot.step() != -1)
   {
