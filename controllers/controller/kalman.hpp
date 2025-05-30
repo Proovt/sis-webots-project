@@ -52,27 +52,13 @@ int kal_get_dim()
 /**
  * @brief      Copy the state vector into a 1D array
  */
-/* void kal_get_state(double *state)
+void kal_get_state(Vec mu, double state[3])
 {
     for (int i = 0; i < DIM; i++)
     {
         state[i] = mu(i);
     }
-} */
-
-/**
- * @brief      Copy the state covariance matrix into a 2D array
- */
-/* void kal_get_state_covariance(double **cov)
-{
-    for (int i = 0; i < sigma.rows(); i++)
-    {
-        for (int j = 0; j < sigma.cols(); j++)
-        {
-            cov[i][j] = sigma(i, j);
-        }
-    }
-} */
+}
 
 /**
  * @brief      Check if a matrix contains any NaN values

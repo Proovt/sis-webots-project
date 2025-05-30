@@ -37,6 +37,7 @@ static Vec2D odo_speed = Vec2D::Zero();
 static Mat Sigma = Mat::Zero();
 static Vec mu = Vec::Zero();
 static Vec u = Vec::Zero();
+static double pose[3] = {0};
 
 /* Delta time */
 static float last_robot_time = -INFINITY;
@@ -89,19 +90,19 @@ int main(int argc, char **argv)
       break;
     }
 
-    // Delta time computation
+    // delta time computation
     double delta_time = compute_delta_time(last_robot_time, time);
 
-    // Update previous time step
+    // update previous time step
     last_robot_time = time;
 
     if (delta_time == INFINITY)
     {
-      // First timestep, skip calculations
+      // first timestep, skip calculations
       continue;
     }
 
-    // Gyroscope bias computation
+    // gyroscope bias computation
     if (!imu_mean_computed)
     {
       imu_mean_computed = compute_gyro_bias(imu, time, delta_time);
@@ -109,7 +110,7 @@ int main(int argc, char **argv)
       continue;
     }
 
-    // Sensor value logging
+    // sensor value logging
     if (VERBOSE_IMU)
       printf("acceleration: %g %g %g, gyroscope: %g %g %g\n", imu[0], imu[1], imu[2], imu[3], imu[4], imu[5]);
 
@@ -134,10 +135,10 @@ int main(int argc, char **argv)
     u << odo_speed(0), 0, gyro_z;
     prediction_step(mu, Sigma, Sigma_u, u, delta_time);
 
-    // Update measurement
+    // update measurement
     prediction_step_heading_encoder(odo_speed(1), delta_time);
 
-    // Fuse sensor values
+    // fuse sensor values
     update_step_sensors(mu, Sigma);
 
     // signal strength below threshold to avoid negative sqrt
@@ -152,7 +153,8 @@ int main(int argc, char **argv)
 
     // NAVIGATION
     double lws = 0.0, rws = 0.0; // left and right wheel speeds
-    double pose[4] = {mu(0), mu(1), mu(2), time};
+
+    kal_get_state(mu, pose); // load pose from state vector
 
     bool final_stop = fsm(ps_values, lws, rws, pose); // finite state machine
     robot.set_motors_velocity(lws, rws);              // set the wheel velocities
