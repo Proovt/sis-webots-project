@@ -56,12 +56,15 @@ error_y = (merged_all['y_odo'] - merged_all['y_gt']).abs().to_numpy()
 sigma2_x = uncertainty['x'].to_numpy()
 sigma2_y = uncertainty['y'].to_numpy()
 
+sigma_x = np.sqrt(sigma2_x)
+sigma_y = np.sqrt(sigma2_y)
+
 # Figure 3: X and Y error
 plt.figure(figsize=(12, 6))
 plt.plot(time, error_x, label='X Error', color='blue')
-plt.plot(time, np.sqrt(sigma2_x), label='X Uncertainty', color='blue', linestyle='--')
+plt.plot(time, sigma_x, label='X Uncertainty', color='blue', linestyle='--')
 plt.plot(time, error_y, label='Y Error', color='orange')
-plt.plot(time, np.sqrt(sigma2_y), label='Y Uncertainty', color='orange', linestyle='--')
+plt.plot(time, sigma_y, label='Y Uncertainty', color='orange', linestyle='--')
 plt.title('Position Error vs Uncertainty')
 plt.xlabel('Time [s]')
 plt.ylabel('Error [m]')
@@ -77,7 +80,8 @@ heading_error = np.min((heading_diff, 2 * np.pi - heading_diff), axis=0)
 heading_error *= 180 / np.pi # Convert to degrees
 
 sigma2_heading = uncertainty['heading'].to_numpy()
-sigma_heading = np.sqrt(sigma2_heading) * 180 / np.pi # Convert to degrees
+sigma_heading = np.sqrt(sigma2_heading)
+sigma_heading *= 180 / np.pi # Convert to degrees
 
 # Figure 3: Heading error
 plt.figure(figsize=(12, 6))
