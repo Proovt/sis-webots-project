@@ -11,10 +11,9 @@ static bool in_light = false;
 static int lowSignalCounter = 0;
 const int MAX_LOW_SIGNAL_COUNT = 40;
 bool Defective = false;
-static bool buffer_full = false;
 static double signal_buffer[1024] = {0};
 static int signal_index = 0;
-static bool go_next = false;
+static bool is_analyzed = false;
 const float Light_calibration = 0.28;
 
 bool detectLight(Pioneer &robot, double light, std::string f_example, int f_example_cols, std::string f_amp_t, int f_amp_t_cols, double pose[3])
@@ -51,33 +50,27 @@ bool detectLight(Pioneer &robot, double light, std::string f_example, int f_exam
 
             if (signal_index >= SIGNAL_LENGTH) // if the signal buffer is full
             {
-                signal_index = 0; // reset the signal index
-                buffer_full = true;
+                signal_index = 0;                // reset the signal index
+                if (pose[2] < 1 && pose[2] > -1) // calibrate the position of the light
+                    x = x + Light_calibration;
 
-                if (buffer_full)
+                if (pose[2] < 4 && pose[2] > 2) // calibrate the position of the light
+                    x = x - Light_calibration;
+                light_count += 1; // count one more light
+
+                if (Defective)
                 {
-                    if (pose[2] < 1 && pose[2] > -1) // calibrate the position of the light
-                        x = x + Light_calibration;
-
-                    if (pose[2] < 4 && pose[2] > 2) // calibrate the position of the light
-                        x = x - Light_calibration;
-                    light_count += 1; // count one more light
-
-                    if (Defective)
-                    {
-                        // If the light is already known to be defective, log it and reset
-                        printf("Detected light n°%.0f, status: Defective, location: (%.1f, %.1f)\n", count, x, y);
-                        log_csv(f_example, f_example_cols, x, y, (double)DEFECTIVE);
-                        Defective = false;
-                    }
-                    else
-                    {
-                        // further analyze signal using FFT
-                        fft_light_analysis(signal_buffer, f_example, f_example_cols, x, y, f_amp_t, f_amp_t_cols, light_count);
-                    }
-                    buffer_full = false; // Reset if you want one-shot
-                    go_next = true;
+                    // If the light is already known to be defective, log it and reset
+                    printf("Detected light n°%.0f, status: Defective, location: (%.1f, %.1f)\n", light_count, x, y);
+                    log_csv(f_example, f_example_cols, x, y, (double)DEFECTIVE);
+                    Defective = false;
                 }
+                else
+                {
+                    // further analyze signal using FFT
+                    fft_light_analysis(signal_buffer, f_example, f_example_cols, x, y, f_amp_t, f_amp_t_cols, light_count);
+                }
+                is_analyzed = true;
             }
         }
         else // no light detected
@@ -91,11 +84,11 @@ bool detectLight(Pioneer &robot, double light, std::string f_example, int f_exam
                 Defective = false;
                 // Light is truly gone
                 in_light = false;
-                go_next = false;
+                is_analyzed = false;
                 lowSignalCounter = 0; // reset
             }
         }
     }
     // returns true if an unseen light is detected
-    return in_light && !go_next;
+    return in_light && !is_analyzed;
 }
