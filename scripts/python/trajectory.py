@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Create figure with reduced height
-fig, ax = plt.subplots(figsize=(10, 4.7))
+fig, ax = plt.subplots(figsize=(8.5, 4))
 
 # Plot trajectory
 ax.plot(data["x"], data["y"], label="Trajectory", color="blue", linewidth=2.5)
