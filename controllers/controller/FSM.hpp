@@ -18,7 +18,7 @@ enum RobotState
   TURNING,
   EMERGENCY_BACKUP,
   STRAIGHT,
-  STOP -
+  STOP
 };
 
 static RobotState state = NAVIGATE;
