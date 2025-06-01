@@ -7,11 +7,23 @@ import numpy as np
 # Load ground truth trajectory
 filename = "controllers/supervisor/data/ground_truth.csv"
 data = ld.load_file(filename)
+
+def find_stable_time_df(df):
+    last_x = df.iloc[-1]['x']
+    last_y = df.iloc[-1]['y']
+    
+    for i in range(len(df) - 2, -1, -1):
+        if df.iloc[i]['x'] != last_x or df.iloc[i]['y'] != last_y:
+            return df.iloc[i+1]['time']
+    return df.iloc[0]['time']
+total_time_sec = find_stable_time_df(data)
+
+print("Time when x and y stop changing:", total_time_sec)
+
 print(data.head(6))
 # Load collisions
 collision_file = "controllers/supervisor/data/collisions.csv"
 collisions = ld.load_file(collision_file)
-
 
 # For each collision time, find the closest row in the trajectory data
 collision_points = []
@@ -25,11 +37,6 @@ collision_df = pd.DataFrame(collision_points)
 print(collision_df.head())
 
 total_collisions = len(collision_df.index)
-total_time_sec = data["time"].iloc[-1]
-
-
-import matplotlib.pyplot as plt
-import numpy as np
 
 # Create figure with reduced height
 fig, ax = plt.subplots(figsize=(10, 4.7))
