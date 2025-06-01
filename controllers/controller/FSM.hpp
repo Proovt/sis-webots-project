@@ -18,8 +18,7 @@ enum RobotState
   TURNING,
   EMERGENCY_BACKUP,
   STRAIGHT,
-  STOP,
-  LIGHTSTOP
+  STOP -
 };
 
 static RobotState state = NAVIGATE;
@@ -97,17 +96,6 @@ void straightBehavior(double &vel_left, double &vel_right)
 {
   vel_left = 0.5;
   vel_right = 0.5;
-}
-
-/**
- * @brief      Executes stop behavior for light detection
- * @param[out] vel_left    Output left wheel speed
- * @param[out] vel_right   Output right wheel speed
- */
-void LightStop(double &vel_left, double &vel_right)
-{
-  vel_left = 0;
-  vel_right = 0;
 }
 
 /**
@@ -425,14 +413,12 @@ bool fsm(double *ps, double &vel_left, double &vel_right, double pose[3], bool s
   case STRAIGHT:
     straightBehavior(vel_left, vel_right);
     break;
-  case LIGHTSTOP:
-    LightStop(vel_left, vel_right);
-    break;
   case STOP:
     stopBehavior(vel_left, vel_right);
     break;
   default:
-    std::cout << "Unknown FSM state!" << std::endl;
+    if (VERBOSE_STATE_NAME)
+      std::cout << "Unknown FSM state!" << std::endl;
     vel_left = vel_right = 0.0;
     break;
   }
