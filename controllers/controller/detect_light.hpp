@@ -49,39 +49,50 @@ bool detectLight(Pioneer &robot, double light, std::string f_example, int f_exam
             lowSignalCounter = 0;
             signal_buffer[signal_index++] = currval;
 
-            if (signal_index >= SIGNAL_LENGTH) //if the signal buffer is full
+            if (signal_index >= SIGNAL_LENGTH) // if the signal buffer is full
             {
-                signal_index = 0; //reset the signal index
+                signal_index = 0; // reset the signal index
                 buffer_full = true;
 
                 if (buffer_full)
                 {
-                    if (pose[2] < 1 && pose[2] > -1) //calibrate the position of the light
+                    if (pose[2] < 1 && pose[2] > -1) // calibrate the position of the light
                         x = x + Light_calibration;
 
-                    if (pose[2] < 4 && pose[2] > 2) //calibrate the position of the light
+                    if (pose[2] < 4 && pose[2] > 2) // calibrate the position of the light
                         x = x - Light_calibration;
-                    light_count += 1; //count one more light
+                    light_count += 1; // count one more light
 
-                    kiss_fft_demo(signal_buffer, f_example, f_example_cols, x, y, f_amp_t, f_amp_t_cols, light_count, Defective);
-                    buffer_full = false; // Reset if you want one-shot$
+                    if (Defective)
+                    {
+                        // If the light is already known to be defective, log it and reset
+                        printf("Detected light n°%.0f, status: Defective, location: (%.1f, %.1f)\n", count, x, y);
+                        log_csv(f_example, f_example_cols, x, y, (double)DEFECTIVE);
+                        Defective = false;
+                    }
+                    else
+                    {
+                        // further analyze signal using FFT
+                        fft_light_analysis(signal_buffer, f_example, f_example_cols, x, y, f_amp_t, f_amp_t_cols, light_count);
+                    }
+                    buffer_full = false; // Reset if you want one-shot
                     go_next = true;
                 }
             }
         }
-        else //no light detected
+        else // no light detected
         {
             // Possibly defective light, increment flicker counter
             lowSignalCounter++;
-            Defective = true; //assume defective light until proven wrong
+            Defective = true; // assume defective light until proven wrong
 
-            if (lowSignalCounter >= MAX_LOW_SIGNAL_COUNT) //if true then defective light proven wrong
+            if (lowSignalCounter >= MAX_LOW_SIGNAL_COUNT) // if true then defective light proven wrong
             {
                 Defective = false;
                 // Light is truly gone
                 in_light = false;
                 go_next = false;
-                lowSignalCounter = 0; //reset
+                lowSignalCounter = 0; // reset
             }
         }
     }
