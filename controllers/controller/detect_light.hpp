@@ -16,7 +16,18 @@ static int signal_index = 0;
 static bool is_analyzed = false;
 const float Light_calibration = 0.28;
 
-bool detectLight(Pioneer &robot, double light, std::string f_example, int f_example_cols, std::string f_amp_t, int f_amp_t_cols, double pose[3])
+/**
+ * @brief      Detects light based on intensity and logs detection events
+ * @param[in]  robot            The Pioneer robot
+ * @param[in]  light            Measured light intensity
+ * @param[in]  f_light_fft        CSV file path to store detections
+ * @param[in]  f_light_fft_cols   Column count for f_light_fft
+ * @param[in]  f_light_data          CSV file path to store signal characteristics
+ * @param[in]  f_light_data_cols     Column count for f_light_data
+ * @param[in]  pose             Robot pose array (x, y, heading)
+ * @return     True if robot should stop for light, false otherwise
+ */
+bool detectLight(Pioneer &robot, double light, std::string f_light_fft, int f_light_fft_cols, std::string f_light_data, int f_light_data_cols, double pose[3])
 {
 
     // For a smoother light reading due to the noise
@@ -62,13 +73,13 @@ bool detectLight(Pioneer &robot, double light, std::string f_example, int f_exam
                 {
                     // If the light is already known to be defective, log it and reset
                     printf("Detected light n°%.0f, status: Defective, location: (%.1f, %.1f)\n", light_count, x, y);
-                    log_csv(f_example, f_example_cols, x, y, (double)DEFECTIVE);
+                    log_csv(f_light_fft, f_light_fft_cols, x, y, (double)DEFECTIVE);
                     Defective = false;
                 }
                 else
                 {
                     // further analyze signal using FFT
-                    fft_light_analysis(signal_buffer, f_example, f_example_cols, x, y, f_amp_t, f_amp_t_cols, light_count);
+                    fft_light_analysis(signal_buffer, f_light_fft, f_light_fft_cols, x, y, f_light_data, f_light_data_cols, light_count);
                 }
                 is_analyzed = true;
             }

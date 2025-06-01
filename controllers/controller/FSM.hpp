@@ -25,6 +25,11 @@ enum RobotState
 static RobotState state = NAVIGATE;
 static RobotState prev_state = NAVIGATE;
 
+/**
+ * @brief      Get string representation of a robot state
+ * @param[in]  s  Robot state enum
+ * @return     Corresponding state name as a string
+ */
 const char *getStateName(RobotState s)
 {
   switch (s)
@@ -48,39 +53,87 @@ const char *getStateName(RobotState s)
 // Behavior Functions //
 ////////////////////////
 
+/**
+ * @brief      Clamp a value between two limits
+ * @param[in]  val       Value to clamp
+ * @param[in]  min_val   Minimum allowed value
+ * @param[in]  max_val   Maximum allowed value
+ * @return     Clamped value
+ */
 double clamp(double val, double min_val, double max_val)
 {
   return std::max(min_val, std::min(val, max_val));
 }
 
+/**
+ * @brief      Executes navigate behavior using Braitenberg logic
+ * @param[in]  ps          Proximity sensor values
+ * @param[out] vel_left    Output left wheel speed
+ * @param[out] vel_right   Output right wheel speed
+ * @param[in]  pose        Robot pose array
+ */
 void navigateBehavior(double *ps, double &vel_left, double &vel_right, double pose[3])
 {
   braitenberg(ps, vel_left, vel_right);
 }
 
+/**
+ * @brief      Executes emergency backup behavior
+ * @param[out] vel_left    Output left wheel speed
+ * @param[out] vel_right   Output right wheel speed
+ */
 void emergencyBackupBehavior(double &vel_left, double &vel_right)
 {
   vel_left = -0.5;
   vel_right = -0.5;
 }
 
+/**
+ * @brief      Executes straight forward movement behavior
+ * @param[out] vel_left    Output left wheel speed
+ * @param[out] vel_right   Output right wheel speed
+ */
 void straightBehavior(double &vel_left, double &vel_right)
 {
   vel_left = 0.5;
   vel_right = 0.5;
 }
+
+/**
+ * @brief      Executes stop behavior for light detection
+ * @param[out] vel_left    Output left wheel speed
+ * @param[out] vel_right   Output right wheel speed
+ */
 void LightStop(double &vel_left, double &vel_right)
 {
   vel_left = 0;
   vel_right = 0;
 }
 
+/**
+ * @brief      Executes final stop behavior
+ * @param[out] vel_left    Output left wheel speed
+ * @param[out] vel_right   Output right wheel speed
+ */
 void stopBehavior(double &vel_left, double &vel_right)
 {
   vel_left = 0;
   vel_right = 0;
 }
 
+/**
+ * @brief      Executes turning behavior when detecting corners or ends
+ * @param[in]  ps                    Proximity sensor values
+ * @param[out] vel_left              Output left wheel speed
+ * @param[out] vel_right             Output right wheel speed
+ * @param[in]  pose                  Robot pose
+ * @param[in]  turn_left             Whether a left turn is expected
+ * @param[in]  turn_right            Whether a right turn is expected
+ * @param[in]  pot_found             Whether a potential turn was already found
+ * @param[out] search_pot            Whether robot is in search mode
+ * @param[out] search_pot_counter    Counter for search mode duration
+ * @param[in]  search_pot_duration   Maximum duration for search mode
+ */
 void turningBehavior(
     double *ps,
     double &vel_left,
@@ -173,10 +226,13 @@ void turningBehavior(
 ///////////////////////
 
 /**
- * @brief Finite State Machine that manages the robot's behavior
- * @param ps_values array of proximity values from the robot's proximity sensors
- * @param[out] vel_lef left wheels velocity
- * @param[out] vel_right right wheels velocity
+ * @brief      Finite State Machine that manages the robot's behavior
+ * @param[in]  ps            Proximity sensor values
+ * @param[out] vel_left      Output left wheel speed
+ * @param[out] vel_right     Output right wheel speed
+ * @param[in]  pose          Current robot pose
+ * @param[in]  stop_for_light Whether light detection should force stop
+ * @return     True if robot is at the end of the last corridor
  */
 bool fsm(double *ps, double &vel_left, double &vel_right, double pose[3], bool stop_for_light)
 {

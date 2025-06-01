@@ -60,11 +60,11 @@ int main(int argc, char **argv)
   std::string f_sensor = "sensor_data.csv";
   int f_sensor_cols = init_csv(f_sensor, "time, ID, T_in, T_out,"); // <-- don't forget the comma at the end of the string!!
 
-  std::string f_example = "Lights_detected.csv";
-  int f_example_cols = init_csv(f_example, "x, y, status,"); // <-- don't forget the comma at the end of the string!!
+  std::string f_light_fft = "Lights_detected.csv";
+  int f_light_fft_cols = init_csv(f_light_fft, "x, y, status,"); // <-- don't forget the comma at the end of the string!!
 
-  std::string f_amp_t = "light_data.csv";
-  int f_amp_t_cols = init_csv(f_amp_t, "ID, amplitude, frequency, magnitude,"); // <-- don't forget the comma at the end of the string!!
+  std::string f_light_data = "light_data.csv";
+  int f_light_data_cols = init_csv(f_light_data, "ID, amplitude, frequency, magnitude,"); // <-- don't forget the comma at the end of the string!!
 
   while (robot.step() != -1)
   {
@@ -146,7 +146,7 @@ int main(int argc, char **argv)
     kal_get_state(mu, pose); // load pose from state vector
 
     // LIGHT DETECTION
-    bool stop_for_light = detectLight(robot, light, f_example, f_example_cols, f_amp_t, f_amp_t_cols, pose);
+    bool stop_for_light = detectLight(robot, light, f_light_fft, f_light_fft_cols, f_light_data, f_light_data_cols, pose);
 
     // NAVIGATION
     double lws = 0.0, rws = 0.0; // left and right wheel speeds
@@ -186,6 +186,10 @@ int main(int argc, char **argv)
   return 0;
 }
 
+/**
+ * @brief      Initialize the controller and subsystems
+ * @param[in]  robot  Reference to the Pioneer robot object
+ */
 void controller_init(Pioneer &robot)
 {
   robot.init();
@@ -195,7 +199,10 @@ void controller_init(Pioneer &robot)
 }
 
 /**
- * @brief      Compute the delta time between two time steps
+ * @brief      Compute the time difference between two timestamps
+ * @param[in]  last_time     The previous timestamp
+ * @param[in]  current_time  The current timestamp
+ * @return     Time difference (delta time)
  */
 double compute_delta_time(double last_time, double current_time)
 {

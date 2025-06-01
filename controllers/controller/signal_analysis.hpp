@@ -16,11 +16,17 @@ enum LightStatus
 };
 
 /**
- * @brief KISS FFT USAGE EXAMPLE
- * @param signal_data pointer to the array containing the signal to be analyzed
+ * @brief      Performs FFT on a light signal to analyze frequency components
+ * @param[in]  signal_data        Pointer to array of light signal data
+ * @param[in]  f_light_fft        Output file for FFT classification
+ * @param[in]  f_light_fft_cols   Column index for FFT CSV output
+ * @param[in]  x                  X coordinate of the light source
+ * @param[in]  y                  Y coordinate of the light source
+ * @param[in]  f_light_data       Output file for FFT raw data
+ * @param[in]  f_light_data_cols  Column index for FFT data CSV
+ * @param[in]  count              Light identifier (index)
  */
-
-void fft_light_analysis(double *signal_data, std::string f_example, int f_example_cols, double x, double y, std::string f_amp_t, int f_amp_t_cols, double count)
+void fft_light_analysis(double *signal_data, std::string f_light_fft, int f_light_fft_cols, double x, double y, std::string f_light_data, int f_light_data_cols, double count)
 {
 
     /* fft preparation */
@@ -50,7 +56,7 @@ void fft_light_analysis(double *signal_data, std::string f_example, int f_exampl
 
     for (int i = 1; i < SIGNAL_LENGTH; i++)
     {
-        log_csv(f_amp_t, f_amp_t_cols, count, signal_data[i], (double)i - 512, mag[i]); // Used to plot FFTs, so one can analyze the signal more precisely
+        log_csv(f_light_data, f_light_data_cols, count, signal_data[i], (double)i - 512, mag[i]); // Used to plot FFTs, so one can analyze the signal more precisely
     }
 
     for (int i = 1; i < SIGNAL_LENGTH; ++i)
@@ -58,12 +64,12 @@ void fft_light_analysis(double *signal_data, std::string f_example, int f_exampl
         if (mag[i] > 10.0f) // if there is a frequency with a magnitude bigger than 10, then the light is flickering
         {
             printf("Detected light n°%.0f, status: Flickering, location: (%.1f, %.1f)\n", count, x, y);
-            log_csv(f_example, f_example_cols, x, y, (double)FLICKERING);
+            log_csv(f_light_fft, f_light_fft_cols, x, y, (double)FLICKERING);
             return;
         }
     }
 
     // the FFT doesn't have any peaks over 10 and the light isn't defective, therefore the light is nominal
     printf("Detected light n°%.0f, status: Good, location: (%.1f, %.1f)\n", count, x, y);
-    log_csv(f_example, f_example_cols, x, y, (double)NOMINAL);
+    log_csv(f_light_fft, f_light_fft_cols, x, y, (double)NOMINAL);
 }

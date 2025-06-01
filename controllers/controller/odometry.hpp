@@ -28,13 +28,20 @@ static double axis_width;		 // [m] (empirical)
 
 static MovingAverage gyr_z_avg(20);
 
+/**
+ * @brief      Initializes odometry subsystem
+ */
 void odo_init()
 {
 	axis_width = pioneer_info.width + 0.092;
 }
 
 /**
- * @brief      Compute the mean of the 3-axis accelerometer for about TIME_INIT_ACC seconds. The result is stored in array imu_mean
+ * @brief      Computes gyroscope bias over time for about TIME_INIT_ACC seconds
+ * @param[in]  imu        	 IMU sensor array
+ * @param[in]  time       	 Current timestamp
+ * @param[in]  delta_time    Time step
+ * @return     True if bias estimation is complete
  */
 bool compute_gyro_bias(double imu[6], float time, double delta_time)
 {
@@ -65,6 +72,12 @@ bool compute_gyro_bias(double imu[6], float time, double delta_time)
 	return false;
 }
 
+/**
+ * @brief      Computes angular velocity from gyroscope data
+ * @param[in]  imu       	IMU sensor array
+ * @param[in]  delta_time   Time difference
+ * @return     Angular velocity (z-axis)
+ */
 double odo_compute_gyroscope(const double imu[6], double delta_time)
 {
 	// Remove static bias
@@ -76,11 +89,11 @@ double odo_compute_gyroscope(const double imu[6], double delta_time)
 }
 
 /**
- * @brief      Compute the odometry using the encoders
- *
- * @param      odo         The odometry
- * @param[in]  Aleft_enc   The delta left encoder
- * @param[in]  Aright_enc  The delta right encoder
+ * @brief      Computes robot velocity based on encoder values
+ * @param[out] odo_speed  	 Vector to store linear and angular speed
+ * @param[in]  Aleft_enc     Left wheel encoder difference
+ * @param[in]  Aright_enc    Right wheel encoder difference
+ * @param[in]  delta_time    Time difference
  */
 void odo_compute_encoders(Vec2D &odo_speed, double Aleft_enc, double Aright_enc, double delta_time)
 {
